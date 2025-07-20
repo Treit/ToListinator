@@ -8,6 +8,18 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    
+    <PackageId>ToListinator</PackageId>
+    <Title>ToListinator Analyzer</Title>
+    <Authors>Treit</Authors>
+    <Description>A Roslyn analyzer for fixing inefficient usage of ToList and other anti-patterns.</Description>
+    <PackageProjectUrl>https://github.com/Treit/ToListinator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Treit/ToListinator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>analyzer;roslyn;csharp;performance;tolist</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +32,7 @@
 
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
