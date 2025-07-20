@@ -8,7 +8,7 @@ using System.Collections.Immutable;
 namespace ToListinator
 {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public class ToListinatorAnalyzer : DiagnosticAnalyzer
+    public class ToListForEachAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "TL001";
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(

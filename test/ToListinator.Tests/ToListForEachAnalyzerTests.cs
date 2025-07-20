@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using ToListinator;
 
-public class ToListinatorAnalyzerTests
+public class ToListForEachAnalyzerTests
 {
     [Fact]
     public async Task ShouldReportWarningForToListForEach()
@@ -21,13 +21,13 @@ public class TestClass
     }
 }";
 
-        var test = new CSharpAnalyzerTest<ToListinatorAnalyzer, DefaultVerifier>
+        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
         {
             TestCode = testCode,
         };
 
         test.ExpectedDiagnostics.Add(
-            DiagnosticResult.CompilerWarning(ToListinatorAnalyzer.DiagnosticId)
+            DiagnosticResult.CompilerWarning(ToListForEachAnalyzer.DiagnosticId)
                 .WithLocation(0)
                 .WithMessage("Avoid using ToList().ForEach, which allocates a List unnecessarily. Use a regular foreach loop instead.")
         );
@@ -55,7 +55,7 @@ public class TestClass
     }
 }";
 
-        var test = new CSharpAnalyzerTest<ToListinatorAnalyzer, DefaultVerifier>
+        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
         {
             TestCode = testCode,
         };
@@ -81,7 +81,7 @@ public class TestClass
     }
 }";
 
-        var test = new CSharpAnalyzerTest<ToListinatorAnalyzer, DefaultVerifier>
+        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
         {
             TestCode = testCode,
         };
@@ -106,13 +106,13 @@ public class TestClass
     }
 }";
 
-        var test = new CSharpAnalyzerTest<ToListinatorAnalyzer, DefaultVerifier>
+        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
         {
             TestCode = testCode,
         };
 
         test.ExpectedDiagnostics.Add(
-            DiagnosticResult.CompilerWarning(ToListinatorAnalyzer.DiagnosticId)
+            DiagnosticResult.CompilerWarning(ToListForEachAnalyzer.DiagnosticId)
                 .WithLocation(0)
                 .WithMessage("Avoid using ToList().ForEach, which allocates a List unnecessarily. Use a regular foreach loop instead.")
         );
