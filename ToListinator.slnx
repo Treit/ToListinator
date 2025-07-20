@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ToListinator/ToListinator.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/ToListinator.Tests/ToListinator.Tests.csproj" />
+  </Folder>
+</Solution>
