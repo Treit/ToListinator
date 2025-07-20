@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp;
+using System;
 
 namespace ToListinator
 {
@@ -18,12 +19,20 @@ namespace ToListinator
             isEnabledByDefault: true
         );
 
-        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics 
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
             => ImmutableArray.Create(Rule);
 
         public override void Initialize(AnalysisContext context)
         {
-            // TODO: Register analysis actions to find unnecessary ToList() calls
+            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+            context.EnableConcurrentExecution();
+            context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+        }
+
+        private void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
+        {
+            // TODO: Implement the logic to analyze the invocation expression
+            throw new NotImplementedException();
         }
     }
 }
