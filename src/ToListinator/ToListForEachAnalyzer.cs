@@ -42,7 +42,7 @@ namespace ToListinator
             });
         }
 
-        private void AnalyzeInvocation(OperationAnalysisContext context, ITypeSymbol listType, ITypeSymbol enumerableType)
+        private static void AnalyzeInvocation(OperationAnalysisContext context, ITypeSymbol listType, ITypeSymbol enumerableType)
         {
             var invocation = (IInvocationOperation)context.Operation;
 
