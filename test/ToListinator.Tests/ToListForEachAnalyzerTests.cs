@@ -2,6 +2,10 @@ using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using ToListinator;
 
+using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
+    ToListinator.ToListForEachAnalyzer,
+    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+
 public class ToListForEachAnalyzerTests
 {
     [Fact]
@@ -20,19 +24,8 @@ public class TestClass
         {|#0:numbers.ToList().ForEach(x => Console.WriteLine(x))|};
     }
 }";
-
-        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
-        {
-            TestCode = testCode,
-        };
-
-        test.ExpectedDiagnostics.Add(
-            DiagnosticResult.CompilerWarning(ToListForEachAnalyzer.DiagnosticId)
-                .WithLocation(0)
-                .WithMessage("Avoid using ToList().ForEach, which allocates a List unnecessarily. Use a regular foreach loop instead.")
-        );
-
-        await test.RunAsync();
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
     }
 
     [Fact]
@@ -54,13 +47,7 @@ public class TestClass
         }
     }
 }";
-
-        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
-        {
-            TestCode = testCode,
-        };
-
-        await test.RunAsync();
+        await Verify.VerifyAnalyzerAsync(testCode);
     }
 
     [Fact]
@@ -81,12 +68,7 @@ public class TestClass
     }
 }";
 
-        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
-        {
-            TestCode = testCode,
-        };
-
-        await test.RunAsync();
+        await Verify.VerifyAnalyzerAsync(testCode);
     }
 
     [Fact]
@@ -105,18 +87,7 @@ public class TestClass
         {|#0:numbers.Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x))|};
     }
 }";
-
-        var test = new CSharpAnalyzerTest<ToListForEachAnalyzer, DefaultVerifier>
-        {
-            TestCode = testCode,
-        };
-
-        test.ExpectedDiagnostics.Add(
-            DiagnosticResult.CompilerWarning(ToListForEachAnalyzer.DiagnosticId)
-                .WithLocation(0)
-                .WithMessage("Avoid using ToList().ForEach, which allocates a List unnecessarily. Use a regular foreach loop instead.")
-        );
-
-        await test.RunAsync();
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
     }
 }

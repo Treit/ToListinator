@@ -6,6 +6,5 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/ToListinator.Tests/ToListinator.Tests.csproj" />
-    <Project Path="test/ToListinator.CodeFixes.Tests/ToListinator.CodeFixes.Tests.csproj" />
   </Folder>
 </Solution>
