@@ -3,28 +3,32 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    
+    <PackageId>ToListinator</PackageId>
+    <Title>ToListinator Analyzer and CodeFixes</Title>
+    <Authors>Treit</Authors>
+    <Description>A Roslyn analyzer for fixing inefficient usage of ToList and other anti-patterns, including automatic code fixes.</Description>
+    <PackageProjectUrl>https://github.com/Treit/ToListinator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Treit/ToListinator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>analyzer;roslyn;csharp;performance;tolist;codefix</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" Version="4.14.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" Version="4.14.0" />
+    <ProjectReference Include="../ToListinator.Analyzers/ToListinator.Analyzers.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../ToListinator.CodeFixes/ToListinator.CodeFixes.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="../ToListinator.Analyzers/bin/$(Configuration)/netstandard2.0/ToListinator.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="../ToListinator.CodeFixes/bin/$(Configuration)/netstandard2.0/ToListinator.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="../../README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
-  </ItemGroup>
 </Project>
-

@@ -3,23 +3,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    
-    <PackageId>ToListinator.CodeFixes</PackageId>
-    <Title>ToListinator CodeFixes</Title>
-    <Authors>Treit</Authors>
-    <Description>CodeFixes for the ToListinator analyzer package.</Description>
-    <PackageProjectUrl>https://github.com/Treit/ToListinator</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Treit/ToListinator</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>analyzer;roslyn;csharp;performance;tolist;codefix</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,12 +15,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" Version="4.14.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" PrivateAssets="all" Version="4.14.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all" Version="4.14.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\ToListinator.Analyzers\ToListinator.Analyzers.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,3 +27,4 @@
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
 </Project>
+

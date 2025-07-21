@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ToListinator\ToListinator.csproj" />
+    <ProjectReference Include="..\..\src\ToListinator.Analyzers\ToListinator.Analyzers.csproj" />
   </ItemGroup>
 
 </Project>
