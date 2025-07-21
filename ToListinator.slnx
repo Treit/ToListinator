@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/ToListinator.Analyzers/ToListinator.Analyzers.csproj" />
+    <Project Path="src/ToListinator.CodeFixes/ToListinator.CodeFixes.csproj" />
     <Project Path="src/ToListinator/ToListinator.csproj" />
   </Folder>
   <Folder Name="/test/">

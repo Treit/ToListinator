@@ -1,0 +1,21 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ToListinator.TestApp", "ToListinator.TestApp.csproj", "{4043476D-6D56-41AD-8A7D-00F644C8ECCD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4043476D-6D56-41AD-8A7D-00F644C8ECCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4043476D-6D56-41AD-8A7D-00F644C8ECCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4043476D-6D56-41AD-8A7D-00F644C8ECCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4043476D-6D56-41AD-8A7D-00F644C8ECCD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {718FF6B2-0B92-414C-B22C-D2DE65E6455B}
+	EndGlobalSection
+EndGlobal
