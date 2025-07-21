@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ToListinator/ToListinator.csproj" />
+    <Project Path="src/ToListinator.CodeFixes/ToListinator.CodeFixes.csproj" />
+    <Project Path="src/ToListinator.Package/ToListinator.Package.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/ToListinator.Tests/ToListinator.Tests.csproj" />
+    <Project Path="test/ToListinator.CodeFixes.Tests/ToListinator.CodeFixes.Tests.csproj" />
   </Folder>
 </Solution>

@@ -55,7 +55,7 @@ jobs:
       run: dotnet test --no-build --configuration Release --verbosity normal
       
     - name: Pack
-      run: dotnet pack src/ToListinator/ToListinator.csproj --no-build --configuration Release --output ./packages
+      run: dotnet pack src/ToListinator.Package/ToListinator.Package.csproj --no-build --configuration Release --output ./packages
       
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
