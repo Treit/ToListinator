@@ -1,13 +1,13 @@
-using System.Collections.Immutable;
-using System.Composition;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Immutable;
+using System.Composition;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ToListinator.CodeFixes
 {
@@ -47,8 +47,22 @@ namespace ToListinator.CodeFixes
             CancellationToken cancellationToken)
         {
             // TODO: Implement the logic to replace the invocation with a foreach loop.
+
+
+            // TEMPORARY: Just append some string to the end to verify the fix runs.
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            return document;
+            var lastToken = root!.GetLastToken();
+
+            var commentTrivia = SyntaxFactory.Comment("// CodeFix was here");
+            var newTrailingTrivia = lastToken.TrailingTrivia
+                .Add(commentTrivia);
+
+            var newLastToken = lastToken.WithTrailingTrivia(newTrailingTrivia);
+            var newRoot = root.ReplaceToken(lastToken, newLastToken);
+
+            var newDocument = document.WithSyntaxRoot(newRoot);
+
+            return newDocument;
         }
     }
 }
