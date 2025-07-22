@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Composition;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,52 +66,74 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         cancellationToken.ThrowIfCancellationRequested();
 
         var invocationData = FindForEachInvocation(toListInvocation);
-
-        if (invocationData.ForEachInvocation is null)
-        {
-            return document;
-        }
-
-        if (invocationData.ForEachInvocation.Expression is not MemberAccessExpressionSyntax forEachAccess ||
-            forEachAccess.Name.Identifier.Text != "ForEach")
-        {
-            return document;
-        }
-
-        if (invocationData.ForEachInvocation.ArgumentList.Arguments is not [{ Expression: var forEachArg }])
+        var arguments = invocationData.ForEachInvocation?.ArgumentList.Arguments;
+        if (arguments is not [{ Expression: var forEachArg }])
         {
             return document;
         }
 
         var argumentData = ParseForEachArgument(forEachArg);
-        if (argumentData.Parameter is null || argumentData.Body is null)
-        {
-            return document;
-        }
 
-        if (forEachAccess.Expression is not InvocationExpressionSyntax toListInvocation2 ||
-            toListInvocation2.Expression is not MemberAccessExpressionSyntax toListAccess ||
-            toListAccess.Name.Identifier.Text != "ToList" ||
-            argumentData.Parameter is null)
+        if (!IsValidForEachTransformation(
+            invocationData,
+            argumentData,
+            out var forEachAccess,
+            out var toListAccess))
         {
             return document;
         }
 
         var originalCollection = invocationData.OriginalCollection ?? toListAccess.Expression;
 
-        var foreachStatement = CreateForEachStatement(argumentData.Parameter, originalCollection, argumentData.Body);
-        var expressionStatement = invocationData.ForEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
+        var foreachStatement = CreateForEachStatement(argumentData.Parameter!, originalCollection, argumentData.Body!);
+        var expressionStatement = invocationData.ForEachInvocation!.FirstAncestorOrSelf<ExpressionStatementSyntax>();
         if (expressionStatement is null)
         {
             return document;
         }
 
         var formattedForeach = ApplyTrivia(foreachStatement, expressionStatement);
-
         var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
         var newRoot = root.ReplaceNode(expressionStatement, formattedForeach);
+
         return document.WithSyntaxRoot(newRoot);
     }
+
+    private static bool IsValidForEachTransformation(
+        ForEachInvocationData invocationData,
+        ForEachArgumentData argumentData,
+        [NotNullWhen(true)] out MemberAccessExpressionSyntax? forEachAccess,
+        [NotNullWhen(true)] out MemberAccessExpressionSyntax? toListAccess)
+    {
+        if (invocationData is
+            {
+                ForEachInvocation: InvocationExpressionSyntax
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.Text: "ForEach",
+                        Expression: InvocationExpressionSyntax
+                        {
+                            Expression: MemberAccessExpressionSyntax
+                            {
+                                Name.Identifier.Text: "ToList"
+                            } toList
+                        }
+                    } forEach
+                }
+            }
+            && argumentData is { Parameter: not null, Body: not null })
+        {
+            forEachAccess = forEach;
+            toListAccess = toList;
+            return true;
+        }
+
+        forEachAccess = null;
+        toListAccess = null;
+        return false;
+    }
+
 
     private static ForEachStatementSyntax CreateForEachStatement(
         ParameterSyntax parameter,
@@ -128,7 +151,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
             type: SyntaxFactory.IdentifierName("var"),
             identifier: parameter.Identifier,
             inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
-            expression: originalCollection.WithoutTrailingTrivia(),
+            expression: originalCollection,
             closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
             statement: body);
     }
@@ -148,6 +171,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
     {
         return forEachArg switch
         {
+            // Matches list.ToList().ForEach(x => Console.WriteLine(x));
             SimpleLambdaExpressionSyntax simpleLambda => new(
                 simpleLambda.Parameter,
                 simpleLambda.Body switch
@@ -157,7 +181,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                     _ => null
                 }
             ),
-
+            // Matches list.ToList().ForEach((x) => Console.WriteLine(x));
             ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1 => new(
                 parenLambda.ParameterList.Parameters[0],
                 parenLambda.Body switch
@@ -167,7 +191,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                     _ => null
                 }
             ),
-
+            // Matches list.OrderBy(x => x).ToList().ForEach(Print);
             IdentifierNameSyntax methodGroup => new(
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("x")),
                 SyntaxFactory.Block(
@@ -178,17 +202,22 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                                     SyntaxFactory.SingletonSeparatedList(
                                         SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))))
             ),
-
-            AnonymousMethodExpressionSyntax anonymousMethod when anonymousMethod.ParameterList?.Parameters.Count == 1 => new(
-                anonymousMethod.ParameterList.Parameters[0],
-                anonymousMethod.Body is BlockSyntax originalBody ? SyntaxFactory.Block(originalBody.Statements) : null
+            // Matches list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); });
+            AnonymousMethodExpressionSyntax anonymousMethod
+                when anonymousMethod.ParameterList?.Parameters.Count == 1
+                => new(
+                    anonymousMethod.ParameterList.Parameters[0],
+                    anonymousMethod.Body is BlockSyntax originalBody
+                        ? SyntaxFactory.Block(originalBody.Statements)
+                        : null
             ),
 
             _ => new(null, null)
         };
     }
 
-    private static ForEachInvocationData FindForEachInvocation(InvocationExpressionSyntax toListInvocation)
+    private static ForEachInvocationData FindForEachInvocation(
+        InvocationExpressionSyntax toListInvocation)
     {
         if (toListInvocation is
             {

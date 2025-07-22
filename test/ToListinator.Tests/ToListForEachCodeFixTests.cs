@@ -55,6 +55,48 @@ public class ToListForEachCodeFixTests
     }
 
     [Fact]
+    public async Task BasicParenthesizedLambda()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+                list.ToList().ForEach((x) => Console.WriteLine(x));
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+                foreach (var x in list)
+                {
+                    Console.WriteLine(x);
+                }
+            }
+        }
+        """;
+        var expected = Verify.Diagnostic().WithLocation(10, 9);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
     public async Task BasicLambdaChainedToWhere()
     {
         var testCode =
