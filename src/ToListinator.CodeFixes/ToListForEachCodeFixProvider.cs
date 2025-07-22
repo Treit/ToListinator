@@ -8,7 +8,6 @@ using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace ToListinator.CodeFixes;
 
@@ -84,6 +83,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         }
         else
         {
+            // It's a direct ToList().ForEach() already.
             forEachInvocation = matchedForEachInvocation;
             originalCollection = matchedOriginalCollection;
         }
@@ -110,6 +110,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         switch (forEachArg)
         {
             case SimpleLambdaExpressionSyntax simpleLambda:
+                // Handle lambda case like `list.ToList().ForEach(x => Console.WriteLine(x));`
                 parameter = simpleLambda.Parameter;
                 body = simpleLambda.Body switch
                 {
@@ -120,6 +121,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 break;
 
             case ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1:
+                // Handle lambda case like `list.ToList().ForEach((x) => Console.WriteLine(x));`
                 parameter = parenLambda.ParameterList.Parameters[0];
                 body = parenLambda.Body switch
                 {
@@ -130,7 +132,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 break;
 
             case IdentifierNameSyntax methodGroup:
-                // Could generate: foreach (var x in ...) methodGroup(x);
+                // Handle method group syntax like `list.ForEach(Print);`
                 parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("x"));
                 body = SyntaxFactory.Block(
                     SyntaxFactory.ExpressionStatement(
@@ -139,6 +141,16 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                                 SyntaxFactory.ArgumentList(
                                     SyntaxFactory.SingletonSeparatedList(
                                         SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))));
+                break;
+
+            case AnonymousMethodExpressionSyntax anonymousMethod when anonymousMethod.ParameterList?.Parameters.Count == 1:
+                // Handle delegate keyword case like `list.ToList().ForEach(delegate(int x) { Console.WriteLine(x); });`
+                parameter = anonymousMethod.ParameterList.Parameters[0];
+                var originalBody = anonymousMethod.Body as BlockSyntax;
+                if (originalBody is not null)
+                {
+                    body = SyntaxFactory.Block(originalBody.Statements);
+                }
                 break;
         }
 
@@ -152,7 +164,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
 
         originalCollection ??= toListAccess.Expression;
 
-        // Remove leading trivia
+        // Remove leading trivia. We will add it back to the final code later.
         originalCollection = originalCollection.WithoutLeadingTrivia();
 
         var foreachStatement = SyntaxFactory.ForEachStatement(

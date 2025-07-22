@@ -187,4 +187,105 @@ public class ToListForEachCodeFixTests
 
         await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
     }
+
+    [Fact]
+    public async Task BasicMethodGroupWithLeadingAndTrailingTrivia()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list
+                list.OrderBy(x => x).ToList().ForEach(Print); // Trailing comment
+            }
+
+            private static void Print<T>(T item)
+            {
+                Console.WriteLine(item);
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list
+                foreach (var x in list.OrderBy(x => x)) // Trailing comment
+                {
+                    Print(x);
+                }
+            }
+
+            private static void Print<T>(T item)
+            {
+                Console.WriteLine(item);
+            }
+        }
+        """; var expected = Verify.Diagnostic().WithLocation(12, 9);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task BasicDelegateWithLeadingAndTrailingTrivia()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list with delegate
+                list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); }); // Trailing comment
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list with delegate
+                foreach (var item in list.Where(x => x > 0)) // Trailing comment
+                {
+                    Console.WriteLine(item);
+                }
+            }
+        }
+        """;
+        var expected = Verify.Diagnostic().WithLocation(12, 9);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
 }
