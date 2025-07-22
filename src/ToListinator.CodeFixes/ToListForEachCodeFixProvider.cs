@@ -152,6 +152,9 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
 
         originalCollection ??= toListAccess.Expression;
 
+        // Remove leading trivia
+        originalCollection = originalCollection.WithoutLeadingTrivia();
+
         var foreachStatement = SyntaxFactory.ForEachStatement(
             attributeLists: default,
             awaitKeyword: default,
@@ -164,14 +167,21 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
             closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
             statement: body!);
 
+
         var expressionStatement = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
         if (expressionStatement is null)
         {
             return document;
         }
 
+        var trailingTrivia = expressionStatement.SemicolonToken.TrailingTrivia;
+
+        var formattedForeach = foreachStatement
+            .WithLeadingTrivia(expressionStatement.GetLeadingTrivia())
+            .WithCloseParenToken(foreachStatement.CloseParenToken.WithTrailingTrivia(trailingTrivia));
+
         var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
-        var newRoot = root.ReplaceNode(expressionStatement, foreachStatement.WithTriviaFrom(forEachInvocation));
+        var newRoot = root.ReplaceNode(expressionStatement, formattedForeach);
         return document.WithSyntaxRoot(newRoot);
     }
 
