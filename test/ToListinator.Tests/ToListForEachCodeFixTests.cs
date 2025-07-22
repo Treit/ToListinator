@@ -280,8 +280,9 @@ public class ToListForEachCodeFixTests
                 Console.WriteLine(item);
             }
         }
-        """; var expected = Verify.Diagnostic().WithLocation(12, 9);
+        """;
 
+        var expected = Verify.Diagnostic().WithLocation(12, 9);
         await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
     }
 
