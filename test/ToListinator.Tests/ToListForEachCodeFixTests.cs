@@ -40,9 +40,12 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                list.ToList().ForEach(x => Console.WriteLine(x));
+                foreach (var x in list)
+                {
+                    Console.WriteLine(x);
+                }
             }
-        }// CodeFix was here
+        }
         """;
         var expected = Verify.Diagnostic().WithLocation(10, 9);
 

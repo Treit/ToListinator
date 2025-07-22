@@ -40,29 +40,61 @@ namespace ToListinator.CodeFixes
 
             context.RegisterCodeFix(action, diagnostic);
         }
-
         private static async Task<Document> ReplaceWithForeachLoop(
             Document document,
-            InvocationExpressionSyntax invocation,
+            InvocationExpressionSyntax toListInvocation,
             CancellationToken cancellationToken)
         {
-            // TODO: Implement the logic to replace the invocation with a foreach loop.
+            var root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
+            // toListInvocation is 'list.ToList()'
+            if (toListInvocation.Expression is not MemberAccessExpressionSyntax toListAccess ||
+                toListAccess.Name.Identifier.Text != "ToList")
+                return document;
 
-            // TEMPORARY: Just append some string to the end to verify the fix runs.
-            var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            var lastToken = root!.GetLastToken();
+            // 'list.ToList().ForEach'
+            if (toListInvocation.Parent is not MemberAccessExpressionSyntax forEachAccess ||
+                forEachAccess.Name.Identifier.Text != "ForEach")
+                return document;
 
-            var commentTrivia = SyntaxFactory.Comment("// CodeFix was here");
-            var newTrailingTrivia = lastToken.TrailingTrivia
-                .Add(commentTrivia);
+            // 'list.ToList().ForEach(...)'
+            if (forEachAccess.Parent is not InvocationExpressionSyntax forEachInvocation)
+                return document;
 
-            var newLastToken = lastToken.WithTrailingTrivia(newTrailingTrivia);
-            var newRoot = root.ReplaceToken(lastToken, newLastToken);
+            // Ensure lambda expression exists
+            if (forEachInvocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is not SimpleLambdaExpressionSyntax lambda)
+                return document;
 
-            var newDocument = document.WithSyntaxRoot(newRoot);
+            // ✅ Get 'list' from 'list.ToList()'
+            if (toListAccess.Expression is not ExpressionSyntax originalCollection)
+                return document;
 
-            return newDocument;
+            // Build: foreach (var x in list) { body }
+            var foreachStatement = SyntaxFactory.ForEachStatement(
+                attributeLists: default,
+                awaitKeyword: default,
+                forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
+                openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
+                type: SyntaxFactory.IdentifierName("var"),
+                identifier: lambda.Parameter.Identifier,
+                inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
+                expression: originalCollection.WithoutTrivia(),
+                closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
+                statement: lambda.Body is BlockSyntax block
+                    ? block
+                    : SyntaxFactory.Block(SyntaxFactory.ExpressionStatement((ExpressionSyntax)lambda.Body)))
+                .WithLeadingTrivia(forEachInvocation.GetLeadingTrivia())
+                .WithTrailingTrivia(forEachInvocation.GetTrailingTrivia());
+
+            // Replace the whole statement that contains the ForEach call
+            var statementToReplace = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
+            if (statementToReplace == null)
+                return document;
+
+            var newRoot = root.ReplaceNode(statementToReplace, foreachStatement);
+            return document.WithSyntaxRoot(newRoot);
         }
+
     }
 }
