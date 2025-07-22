@@ -49,15 +49,26 @@ namespace ToListinator.CodeFixes
             cancellationToken.ThrowIfCancellationRequested();
 
             // Ensure .ToList()
-            if (toListInvocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ToList", Expression: var originalCollection })
+            if (toListInvocation is not
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.Text: "ToList",
+                        Expression: var originalCollection,
+                    },
+                    Parent: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.Text: "ForEach",
+                        Parent: InvocationExpressionSyntax
+                        {
+                            ArgumentList.Arguments: [{ Expression: { } argumentExpr }],
+                        } forEachInvocation,
+                    },
+                }
+            )
+            {
                 return document;
-
-            // Walk up to .ForEach(...)
-            if (toListInvocation.Parent is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ForEach", Parent: InvocationExpressionSyntax forEachInvocation })
-                return document;
-
-            if (forEachInvocation.ArgumentList.Arguments is not [{ Expression: { } argumentExpr }])
-                return document;
+            }
 
             var statementToReplace = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
             if (statementToReplace == null)
