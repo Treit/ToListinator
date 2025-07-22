@@ -40,25 +40,38 @@ namespace ToListinator.CodeFixes
 
             context.RegisterCodeFix(action, diagnostic);
         }
+
         private static async Task<Document> ReplaceWithForeachLoop(
             Document document,
             InvocationExpressionSyntax toListInvocation,
             CancellationToken cancellationToken)
         {
-            var root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Ensure .ToList()
-            if (toListInvocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ToList", Expression: var originalCollection })
+            if (toListInvocation is not
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.Text: "ToList",
+                        Expression: var originalCollection,
+                    },
+                    Parent: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.Text: "ForEach",
+                        Parent: InvocationExpressionSyntax
+                        {
+                            ArgumentList.Arguments: [{ Expression: { } argumentExpr }],
+                        } forEachInvocation,
+                    },
+                }
+            )
+            {
                 return document;
+            }
 
-            // Walk up to .ForEach(...)
-            if (toListInvocation.Parent is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ForEach" } forEachAccess ||
-                forEachAccess.Parent is not InvocationExpressionSyntax forEachInvocation)
-                return document;
-
-            var argumentExpr = forEachInvocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
-            if (argumentExpr == null)
+            var statementToReplace = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
+            if (statementToReplace == null)
                 return document;
 
             ParameterSyntax parameter;
@@ -69,14 +82,17 @@ namespace ToListinator.CodeFixes
             {
                 case SimpleLambdaExpressionSyntax simpleLambda:
                     parameter = simpleLambda.Parameter;
-                    body = simpleLambda.Body is BlockSyntax b
-                        ? b
-                        : SyntaxFactory.Block(SyntaxFactory.ExpressionStatement((ExpressionSyntax)simpleLambda.Body));
+                    body = simpleLambda.Body switch
+                    {
+                        BlockSyntax b => b,
+                        _ => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement((ExpressionSyntax)simpleLambda.Body)),
+                    };
+
                     break;
 
-                case AnonymousMethodExpressionSyntax anon when anon.ParameterList?.Parameters.Count == 1 && anon.Block != null:
-                    parameter = anon.ParameterList.Parameters[0];
-                    body = anon.Block;
+                case AnonymousMethodExpressionSyntax { ParameterList.Parameters: [{ } param], Block: { } block }:
+                    parameter = param;
+                    body = block;
                     break;
 
                 case IdentifierNameSyntax or MemberAccessExpressionSyntax:
@@ -107,18 +123,14 @@ namespace ToListinator.CodeFixes
                 inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
                 expression: originalCollection.WithoutTrivia(),
                 closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
-                statement: body)
+                statement: body
+            )
                 .WithLeadingTrivia(forEachInvocation.GetLeadingTrivia())
                 .WithTrailingTrivia(forEachInvocation.GetTrailingTrivia());
 
-            var statementToReplace = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
-            if (statementToReplace == null)
-                return document;
-
+            var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
             var newRoot = root.ReplaceNode(statementToReplace, foreachStatement);
             return document.WithSyntaxRoot(newRoot);
         }
-
-
     }
 }

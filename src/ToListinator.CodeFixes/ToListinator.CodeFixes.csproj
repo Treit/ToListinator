@@ -30,15 +30,11 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" Version="4.14.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" PrivateAssets="all" Version="4.14.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all" Version="4.14.0" />
+	<PackageReference Include="PolySharp" PrivateAssets="All" Version="1.15.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ToListinator.Analyzers\ToListinator.Analyzers.csproj" PrivateAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
