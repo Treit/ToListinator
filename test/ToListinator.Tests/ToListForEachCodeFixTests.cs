@@ -8,6 +8,8 @@ using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
     ToListinator.CodeFixes.ToListForEachCodeFixProvider,
     Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
+namespace ToListinator.Tests;
+
 public class ToListForEachCodeFixTests
 {
     [Fact]
