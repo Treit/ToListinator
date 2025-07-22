@@ -13,10 +13,12 @@ class Program
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
 
         // This should trigger the analyzer warning
-        numbers.ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
+        numbers.Where(x => x == x).ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
 
         // This should also trigger the analyzer warning
         numbers.Where(x => x > 2).ToList().ForEach(x => Console.WriteLine($"Filtered: {x}"));
+
+        numbers.Where(x => x > 2).ToList().ForEach(Print);
 
         // This should NOT trigger the analyzer warning (regular foreach)
         foreach (var number in numbers)
@@ -29,5 +31,10 @@ class Program
         Console.WriteLine($"List count: {list.Count}");
 
         Console.WriteLine("Done!");
+    }
+
+    static void Print<T>(T item)
+    {
+        Console.WriteLine(item);
     }
 }

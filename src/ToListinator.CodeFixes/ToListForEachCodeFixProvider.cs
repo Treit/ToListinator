@@ -23,12 +23,20 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+
+        if (root is null)
+        {
+            return;
+        }
+
         var diagnostic = context.Diagnostics.First(diag => diag.Id == ToListForEachAnalyzer.DiagnosticId);
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var invocation = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().First();
+        var invocation = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
+            .OfType<InvocationExpressionSyntax>()
+            .FirstOrDefault();
 
-        if (invocation == null)
+        if (invocation is null)
         {
             return;
         }
