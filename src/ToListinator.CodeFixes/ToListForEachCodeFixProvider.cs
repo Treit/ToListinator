@@ -11,6 +11,14 @@ using System.Threading.Tasks;
 
 namespace ToListinator.CodeFixes;
 
+internal record ForEachInvocationData(
+    InvocationExpressionSyntax? ForEachInvocation,
+    ExpressionSyntax? OriginalCollection);
+
+internal record ForEachArgumentData(
+    ParameterSyntax? Parameter,
+    BlockSyntax? Body);
+
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ToListForEachCodeFixProvider)), Shared]
 public class ToListForEachCodeFixProvider : CodeFixProvider
 {
@@ -56,10 +64,133 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        InvocationExpressionSyntax? forEachInvocation = null;
-        ExpressionSyntax? originalCollection = null;
+        var invocationData = FindForEachInvocation(toListInvocation);
 
-        if (toListInvocation is not
+        if (invocationData.ForEachInvocation is null)
+        {
+            return document;
+        }
+
+        if (invocationData.ForEachInvocation.Expression is not MemberAccessExpressionSyntax forEachAccess ||
+            forEachAccess.Name.Identifier.Text != "ForEach")
+        {
+            return document;
+        }
+
+        if (invocationData.ForEachInvocation.ArgumentList.Arguments is not [{ Expression: var forEachArg }])
+        {
+            return document;
+        }
+
+        var argumentData = ParseForEachArgument(forEachArg);
+        if (argumentData.Parameter is null || argumentData.Body is null)
+        {
+            return document;
+        }
+
+        if (forEachAccess.Expression is not InvocationExpressionSyntax toListInvocation2 ||
+            toListInvocation2.Expression is not MemberAccessExpressionSyntax toListAccess ||
+            toListAccess.Name.Identifier.Text != "ToList" ||
+            argumentData.Parameter is null)
+        {
+            return document;
+        }
+
+        var originalCollection = invocationData.OriginalCollection ?? toListAccess.Expression;
+
+        var foreachStatement = CreateForEachStatement(argumentData.Parameter, originalCollection, argumentData.Body);
+        var expressionStatement = invocationData.ForEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
+        if (expressionStatement is null)
+        {
+            return document;
+        }
+
+        var formattedForeach = ApplyTrivia(foreachStatement, expressionStatement);
+
+        var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
+        var newRoot = root.ReplaceNode(expressionStatement, formattedForeach);
+        return document.WithSyntaxRoot(newRoot);
+    }
+
+    private static ForEachStatementSyntax CreateForEachStatement(
+        ParameterSyntax parameter,
+        ExpressionSyntax originalCollection,
+        BlockSyntax body)
+    {
+        // Remove leading trivia. We will add it back to the final code later.
+        originalCollection = originalCollection.WithoutLeadingTrivia();
+
+        return SyntaxFactory.ForEachStatement(
+            attributeLists: default,
+            awaitKeyword: default,
+            forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
+            openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
+            type: SyntaxFactory.IdentifierName("var"),
+            identifier: parameter.Identifier,
+            inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
+            expression: originalCollection.WithoutTrailingTrivia(),
+            closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
+            statement: body);
+    }
+
+    private static ForEachStatementSyntax ApplyTrivia(
+        ForEachStatementSyntax foreachStatement,
+        ExpressionStatementSyntax expressionStatement)
+    {
+        var trailingTrivia = expressionStatement.SemicolonToken.TrailingTrivia;
+
+        return foreachStatement
+            .WithLeadingTrivia(expressionStatement.GetLeadingTrivia())
+            .WithCloseParenToken(foreachStatement.CloseParenToken.WithTrailingTrivia(trailingTrivia));
+    }
+
+    private static ForEachArgumentData ParseForEachArgument(ExpressionSyntax forEachArg)
+    {
+        return forEachArg switch
+        {
+            SimpleLambdaExpressionSyntax simpleLambda => new(
+                simpleLambda.Parameter,
+                simpleLambda.Body switch
+                {
+                    BlockSyntax b => b,
+                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    _ => null
+                }
+            ),
+
+            ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1 => new(
+                parenLambda.ParameterList.Parameters[0],
+                parenLambda.Body switch
+                {
+                    BlockSyntax b => b,
+                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    _ => null
+                }
+            ),
+
+            IdentifierNameSyntax methodGroup => new(
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("x")),
+                SyntaxFactory.Block(
+                    SyntaxFactory.ExpressionStatement(
+                        SyntaxFactory.InvocationExpression(methodGroup)
+                            .WithArgumentList(
+                                SyntaxFactory.ArgumentList(
+                                    SyntaxFactory.SingletonSeparatedList(
+                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))))
+            ),
+
+            AnonymousMethodExpressionSyntax anonymousMethod when anonymousMethod.ParameterList?.Parameters.Count == 1 => new(
+                anonymousMethod.ParameterList.Parameters[0],
+                anonymousMethod.Body is BlockSyntax originalBody ? SyntaxFactory.Block(originalBody.Statements) : null
+            ),
+
+            _ => new(null, null)
+        };
+    }
+
+    private static ForEachInvocationData FindForEachInvocation(InvocationExpressionSyntax toListInvocation)
+    {
+        if (toListInvocation is
             {
                 Expression: MemberAccessExpressionSyntax
                 {
@@ -77,124 +208,16 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
             }
         )
         {
-            // It's a more complex expression, possibly a chained set of calls, so try to
-            // find the actual ToList().ForEach() expression by walking the chain.
-            forEachInvocation = TryFindToListForEachChain(toListInvocation);
+            // It's a direct ToList().ForEach() already.
+            return new(matchedForEachInvocation, matchedOriginalCollection);
         }
         else
         {
-            // It's a direct ToList().ForEach() already.
-            forEachInvocation = matchedForEachInvocation;
-            originalCollection = matchedOriginalCollection;
+            // It's a more complex expression, possibly a chained set of calls, so try to
+            // find the actual ToList().ForEach() expression by walking the chain.
+            var forEachInvocation = TryFindToListForEachChain(toListInvocation);
+            return new(forEachInvocation, null);
         }
-
-        if (forEachInvocation is null)
-        {
-            return document;
-        }
-
-        if (forEachInvocation.Expression is not MemberAccessExpressionSyntax forEachAccess ||
-            forEachAccess.Name.Identifier.Text != "ForEach")
-        {
-            return document;
-        }
-
-        if (forEachInvocation.ArgumentList.Arguments is not [{ Expression: var forEachArg }])
-        {
-            return document;
-        }
-
-        BlockSyntax? body = null;
-        ParameterSyntax? parameter = null;
-
-        switch (forEachArg)
-        {
-            case SimpleLambdaExpressionSyntax simpleLambda:
-                // Handle lambda case like `list.ToList().ForEach(x => Console.WriteLine(x));`
-                parameter = simpleLambda.Parameter;
-                body = simpleLambda.Body switch
-                {
-                    BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
-                    _ => null
-                };
-                break;
-
-            case ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1:
-                // Handle lambda case like `list.ToList().ForEach((x) => Console.WriteLine(x));`
-                parameter = parenLambda.ParameterList.Parameters[0];
-                body = parenLambda.Body switch
-                {
-                    BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
-                    _ => null
-                };
-                break;
-
-            case IdentifierNameSyntax methodGroup:
-                // Handle method group syntax like `list.ForEach(Print);`
-                parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("x"));
-                body = SyntaxFactory.Block(
-                    SyntaxFactory.ExpressionStatement(
-                        SyntaxFactory.InvocationExpression(methodGroup)
-                            .WithArgumentList(
-                                SyntaxFactory.ArgumentList(
-                                    SyntaxFactory.SingletonSeparatedList(
-                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))));
-                break;
-
-            case AnonymousMethodExpressionSyntax anonymousMethod when anonymousMethod.ParameterList?.Parameters.Count == 1:
-                // Handle delegate keyword case like `list.ToList().ForEach(delegate(int x) { Console.WriteLine(x); });`
-                parameter = anonymousMethod.ParameterList.Parameters[0];
-                var originalBody = anonymousMethod.Body as BlockSyntax;
-                if (originalBody is not null)
-                {
-                    body = SyntaxFactory.Block(originalBody.Statements);
-                }
-                break;
-        }
-
-        if (forEachAccess.Expression is not InvocationExpressionSyntax toListInvocation2 ||
-            toListInvocation2.Expression is not MemberAccessExpressionSyntax toListAccess ||
-            toListAccess.Name.Identifier.Text != "ToList" ||
-            parameter is null)
-        {
-            return document;
-        }
-
-        originalCollection ??= toListAccess.Expression;
-
-        // Remove leading trivia. We will add it back to the final code later.
-        originalCollection = originalCollection.WithoutLeadingTrivia();
-
-        var foreachStatement = SyntaxFactory.ForEachStatement(
-            attributeLists: default,
-            awaitKeyword: default,
-            forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
-            openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
-            type: SyntaxFactory.IdentifierName("var"),
-            identifier: parameter.Identifier,
-            inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
-            expression: originalCollection.WithoutTrailingTrivia(),
-            closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
-            statement: body!);
-
-
-        var expressionStatement = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
-        if (expressionStatement is null)
-        {
-            return document;
-        }
-
-        var trailingTrivia = expressionStatement.SemicolonToken.TrailingTrivia;
-
-        var formattedForeach = foreachStatement
-            .WithLeadingTrivia(expressionStatement.GetLeadingTrivia())
-            .WithCloseParenToken(foreachStatement.CloseParenToken.WithTrailingTrivia(trailingTrivia));
-
-        var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
-        var newRoot = root.ReplaceNode(expressionStatement, formattedForeach);
-        return document.WithSyntaxRoot(newRoot);
     }
 
     // We could have a chain of calls, like Select().Where().OrderBy().Take().ToList().ForEach().
