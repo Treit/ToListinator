@@ -13,7 +13,7 @@ class Program
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
 
         // This should trigger the analyzer warning
-        numbers.Where(x => x == x).ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
+        numbers.ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
 
         // This should also trigger the analyzer warning
         numbers.Where(x => x > 2).ToList().ForEach(x => Console.WriteLine($"Filtered: {x}"));

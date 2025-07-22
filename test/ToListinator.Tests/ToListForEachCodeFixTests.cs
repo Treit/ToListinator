@@ -68,7 +68,7 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                list.Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x));
+                list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x));
             }
         }
         """;
@@ -84,7 +84,7 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                foreach (var x in list.Where(x => x > 1))
+                foreach (var x in list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1))
                 {
                     Console.WriteLine(x);
                 }
