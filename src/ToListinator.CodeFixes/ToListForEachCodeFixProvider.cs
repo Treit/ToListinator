@@ -48,46 +48,69 @@ namespace ToListinator.CodeFixes
             var root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-            // toListInvocation is 'list.ToList()'
-            if (toListInvocation.Expression is not MemberAccessExpressionSyntax toListAccess ||
-                toListAccess.Name.Identifier.Text != "ToList")
+            // Ensure .ToList()
+            if (toListInvocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ToList", Expression: var originalCollection })
                 return document;
 
-            // 'list.ToList().ForEach'
-            if (toListInvocation.Parent is not MemberAccessExpressionSyntax forEachAccess ||
-                forEachAccess.Name.Identifier.Text != "ForEach")
+            // Walk up to .ForEach(...)
+            if (toListInvocation.Parent is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ForEach" } forEachAccess ||
+                forEachAccess.Parent is not InvocationExpressionSyntax forEachInvocation)
                 return document;
 
-            // 'list.ToList().ForEach(...)'
-            if (forEachAccess.Parent is not InvocationExpressionSyntax forEachInvocation)
+            var argumentExpr = forEachInvocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+            if (argumentExpr == null)
                 return document;
 
-            // Ensure lambda expression exists
-            if (forEachInvocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is not SimpleLambdaExpressionSyntax lambda)
-                return document;
+            ParameterSyntax parameter;
+            BlockSyntax body;
 
-            // ✅ Get 'list' from 'list.ToList()'
-            if (toListAccess.Expression is not ExpressionSyntax originalCollection)
-                return document;
+            // We need to handle lambdas, but ideally also method group and delegate keyword invocations.
+            switch (argumentExpr)
+            {
+                case SimpleLambdaExpressionSyntax simpleLambda:
+                    parameter = simpleLambda.Parameter;
+                    body = simpleLambda.Body is BlockSyntax b
+                        ? b
+                        : SyntaxFactory.Block(SyntaxFactory.ExpressionStatement((ExpressionSyntax)simpleLambda.Body));
+                    break;
 
-            // Build: foreach (var x in list) { body }
+                case AnonymousMethodExpressionSyntax anon when anon.ParameterList?.Parameters.Count == 1 && anon.Block != null:
+                    parameter = anon.ParameterList.Parameters[0];
+                    body = anon.Block;
+                    break;
+
+                case IdentifierNameSyntax or MemberAccessExpressionSyntax:
+                    // Method group like: list.ToList().ForEach(LogItem)
+                    parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("x"));
+                    body = SyntaxFactory.Block(
+                        SyntaxFactory.ExpressionStatement(
+                            SyntaxFactory.InvocationExpression(argumentExpr, SyntaxFactory.ArgumentList(
+                                SyntaxFactory.SingletonSeparatedList(
+                                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x"))
+                                )
+                            ))
+                        )
+                    );
+                    break;
+
+                default:
+                    return document;
+            }
+
             var foreachStatement = SyntaxFactory.ForEachStatement(
                 attributeLists: default,
                 awaitKeyword: default,
                 forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
                 openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
                 type: SyntaxFactory.IdentifierName("var"),
-                identifier: lambda.Parameter.Identifier,
+                identifier: parameter.Identifier,
                 inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
                 expression: originalCollection.WithoutTrivia(),
                 closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
-                statement: lambda.Body is BlockSyntax block
-                    ? block
-                    : SyntaxFactory.Block(SyntaxFactory.ExpressionStatement((ExpressionSyntax)lambda.Body)))
+                statement: body)
                 .WithLeadingTrivia(forEachInvocation.GetLeadingTrivia())
                 .WithTrailingTrivia(forEachInvocation.GetTrailingTrivia());
 
-            // Replace the whole statement that contains the ForEach call
             var statementToReplace = forEachInvocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
             if (statementToReplace == null)
                 return document;
@@ -95,6 +118,7 @@ namespace ToListinator.CodeFixes
             var newRoot = root.ReplaceNode(statementToReplace, foreachStatement);
             return document.WithSyntaxRoot(newRoot);
         }
+
 
     }
 }
