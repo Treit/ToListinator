@@ -10,6 +10,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+
 namespace ToListinator.CodeFixes;
 
 internal record ForEachInvocationData(
@@ -31,24 +33,12 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-
-        if (root is null)
-        {
-            return;
-        }
-
         var diagnostic = context.Diagnostics.First(diag => diag.Id == ToListForEachAnalyzer.DiagnosticId);
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var invocation = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<InvocationExpressionSyntax>()
-            .FirstOrDefault();
-
-        if (invocation is null)
-        {
+        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
+        if (root?.FindNode(diagnosticSpan) is not InvocationExpressionSyntax invocation)
             return;
-        }
 
         var action = CodeAction.Create(
             title: "Replace with foreach loop",
@@ -66,31 +56,28 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         cancellationToken.ThrowIfCancellationRequested();
 
         var invocationData = FindForEachInvocation(toListInvocation);
-        var arguments = invocationData.ForEachInvocation?.ArgumentList.Arguments;
-        if (arguments is not [{ Expression: var forEachArg }])
-        {
-            return document;
-        }
-
-        var argumentData = ParseForEachArgument(forEachArg);
 
         if (!IsValidForEachTransformation(
             invocationData,
-            argumentData,
             out var forEachAccess,
             out var toListAccess))
         {
             return document;
         }
 
+        if (invocationData.ForEachInvocation?.ArgumentList.Arguments is not [{ Expression: var forEachArg }])
+            return document;
+
+        if (ParseForEachArgument(forEachArg) is not { } argumentData)
+            return document;
+
         var originalCollection = invocationData.OriginalCollection ?? toListAccess.Expression;
 
         var foreachStatement = CreateForEachStatement(argumentData.Parameter!, originalCollection, argumentData.Body!);
         var expressionStatement = invocationData.ForEachInvocation!.FirstAncestorOrSelf<ExpressionStatementSyntax>();
+
         if (expressionStatement is null)
-        {
             return document;
-        }
 
         var formattedForeach = ApplyTrivia(foreachStatement, expressionStatement);
         var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
@@ -101,7 +88,6 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
 
     private static bool IsValidForEachTransformation(
         ForEachInvocationData invocationData,
-        ForEachArgumentData argumentData,
         [NotNullWhen(true)] out MemberAccessExpressionSyntax? forEachAccess,
         [NotNullWhen(true)] out MemberAccessExpressionSyntax? toListAccess)
     {
@@ -121,8 +107,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                         }
                     } forEach
                 }
-            }
-            && argumentData is { Parameter: not null, Body: not null })
+            })
         {
             forEachAccess = forEach;
             toListAccess = toList;
@@ -143,16 +128,16 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         // Remove leading trivia. We will add it back to the final code later.
         originalCollection = originalCollection.WithoutLeadingTrivia();
 
-        return SyntaxFactory.ForEachStatement(
+        return ForEachStatement(
             attributeLists: default,
             awaitKeyword: default,
-            forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
-            openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
-            type: SyntaxFactory.IdentifierName("var"),
+            forEachKeyword: Token(SyntaxKind.ForEachKeyword),
+            openParenToken: Token(SyntaxKind.OpenParenToken),
+            type: IdentifierName("var"),
             identifier: parameter.Identifier,
-            inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
+            inKeyword: Token(SyntaxKind.InKeyword),
             expression: originalCollection,
-            closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
+            closeParenToken: Token(SyntaxKind.CloseParenToken),
             statement: body);
     }
 
@@ -167,7 +152,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
             .WithCloseParenToken(foreachStatement.CloseParenToken.WithTrailingTrivia(trailingTrivia));
     }
 
-    private static ForEachArgumentData ParseForEachArgument(ExpressionSyntax forEachArg)
+    private static ForEachArgumentData? ParseForEachArgument(ExpressionSyntax forEachArg)
     {
         return forEachArg switch
         {
@@ -177,42 +162,45 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 simpleLambda.Body switch
                 {
                     BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    ExpressionSyntax e => Block(ExpressionStatement(e)),
                     _ => null
                 }
             ),
+
             // Matches list.ToList().ForEach((x) => Console.WriteLine(x));
             ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1 => new(
                 parenLambda.ParameterList.Parameters[0],
                 parenLambda.Body switch
                 {
                     BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    ExpressionSyntax e => Block(ExpressionStatement(e)),
                     _ => null
                 }
             ),
+
             // Matches list.OrderBy(x => x).ToList().ForEach(Print);
             IdentifierNameSyntax methodGroup => new(
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("x")),
-                SyntaxFactory.Block(
-                    SyntaxFactory.ExpressionStatement(
-                        SyntaxFactory.InvocationExpression(methodGroup)
+                Parameter(Identifier("x")),
+                Block(
+                    ExpressionStatement(
+                        InvocationExpression(methodGroup)
                             .WithArgumentList(
-                                SyntaxFactory.ArgumentList(
-                                    SyntaxFactory.SingletonSeparatedList(
-                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))))
+                                ArgumentList(
+                                    SingletonSeparatedList(
+                                        Argument(IdentifierName("x")))))))
             ),
+
             // Matches list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); });
             AnonymousMethodExpressionSyntax anonymousMethod
                 when anonymousMethod.ParameterList?.Parameters.Count == 1
                 => new(
                     anonymousMethod.ParameterList.Parameters[0],
                     anonymousMethod.Body is BlockSyntax originalBody
-                        ? SyntaxFactory.Block(originalBody.Statements)
+                        ? Block(originalBody.Statements)
                         : null
             ),
 
-            _ => new(null, null)
+            _ => null,
         };
     }
 
@@ -231,7 +219,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                     Name.Identifier.Text: "ForEach",
                     Parent: InvocationExpressionSyntax
                     {
-                        ArgumentList.Arguments: [{ Expression: { } argumentExpr }],
+                        ArgumentList.Arguments: [{ Expression: { } }],
                     } matchedForEachInvocation,
                 },
             }
@@ -260,14 +248,14 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         while (current?.Parent is MemberAccessExpressionSyntax memberAccess &&
                memberAccess.Parent is InvocationExpressionSyntax invocation)
         {
-            if (memberAccess.Name.Identifier.Text == "ToList")
-            {
-                if (invocation.Parent is MemberAccessExpressionSyntax forEachAccess &&
-                    forEachAccess.Name.Identifier.Text == "ForEach" &&
-                    forEachAccess.Parent is InvocationExpressionSyntax forEachInvocation)
+            if (memberAccess.Name.Identifier.Text is "ToList" &&
+                invocation.Parent is MemberAccessExpressionSyntax
                 {
-                    return forEachInvocation;
-                }
+                    Name.Identifier.Text: "ForEach",
+                    Parent: InvocationExpressionSyntax forEachInvocation,
+                })
+            {
+                return forEachInvocation;
             }
 
             current = invocation;
