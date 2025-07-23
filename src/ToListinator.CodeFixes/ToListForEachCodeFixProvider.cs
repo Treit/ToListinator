@@ -8,7 +8,7 @@ using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
+using ToListinator.Analyzers;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
@@ -76,7 +76,9 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         var expressionStatement = invocationData.ForEachInvocation!.FirstAncestorOrSelf<ExpressionStatementSyntax>();
 
         if (expressionStatement is null)
+        {
             return document;
+        }
 
         var formattedForeach = ApplyTrivia(foreachStatement, expressionStatement);
         var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
