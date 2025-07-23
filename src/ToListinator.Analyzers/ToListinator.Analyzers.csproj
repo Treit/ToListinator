@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -15,7 +15,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
-    <PackageReference Include="PolySharp" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
