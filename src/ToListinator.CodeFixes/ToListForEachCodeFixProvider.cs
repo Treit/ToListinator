@@ -10,6 +10,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+
 namespace ToListinator.CodeFixes;
 
 internal record ForEachInvocationData(
@@ -126,16 +128,16 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         // Remove leading trivia. We will add it back to the final code later.
         originalCollection = originalCollection.WithoutLeadingTrivia();
 
-        return SyntaxFactory.ForEachStatement(
+        return ForEachStatement(
             attributeLists: default,
             awaitKeyword: default,
-            forEachKeyword: SyntaxFactory.Token(SyntaxKind.ForEachKeyword),
-            openParenToken: SyntaxFactory.Token(SyntaxKind.OpenParenToken),
-            type: SyntaxFactory.IdentifierName("var"),
+            forEachKeyword: Token(SyntaxKind.ForEachKeyword),
+            openParenToken: Token(SyntaxKind.OpenParenToken),
+            type: IdentifierName("var"),
             identifier: parameter.Identifier,
-            inKeyword: SyntaxFactory.Token(SyntaxKind.InKeyword),
+            inKeyword: Token(SyntaxKind.InKeyword),
             expression: originalCollection,
-            closeParenToken: SyntaxFactory.Token(SyntaxKind.CloseParenToken),
+            closeParenToken: Token(SyntaxKind.CloseParenToken),
             statement: body);
     }
 
@@ -160,7 +162,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 simpleLambda.Body switch
                 {
                     BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    ExpressionSyntax e => Block(ExpressionStatement(e)),
                     _ => null
                 }
             ),
@@ -171,21 +173,21 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 parenLambda.Body switch
                 {
                     BlockSyntax b => b,
-                    ExpressionSyntax e => SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(e)),
+                    ExpressionSyntax e => Block(ExpressionStatement(e)),
                     _ => null
                 }
             ),
 
             // Matches list.OrderBy(x => x).ToList().ForEach(Print);
             IdentifierNameSyntax methodGroup => new(
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("x")),
-                SyntaxFactory.Block(
-                    SyntaxFactory.ExpressionStatement(
-                        SyntaxFactory.InvocationExpression(methodGroup)
+                Parameter(Identifier("x")),
+                Block(
+                    ExpressionStatement(
+                        InvocationExpression(methodGroup)
                             .WithArgumentList(
-                                SyntaxFactory.ArgumentList(
-                                    SyntaxFactory.SingletonSeparatedList(
-                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("x")))))))
+                                ArgumentList(
+                                    SingletonSeparatedList(
+                                        Argument(IdentifierName("x")))))))
             ),
 
             // Matches list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); });
@@ -194,7 +196,7 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                 => new(
                     anonymousMethod.ParameterList.Parameters[0],
                     anonymousMethod.Body is BlockSyntax originalBody
-                        ? SyntaxFactory.Block(originalBody.Statements)
+                        ? Block(originalBody.Statements)
                         : null
             ),
 
