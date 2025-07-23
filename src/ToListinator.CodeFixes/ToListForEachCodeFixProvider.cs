@@ -185,6 +185,18 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                                         Argument(IdentifierName("x")))))))
             ),
 
+            // Matches list.OrderBy(x => x).ToList().ForEach(Console.Write);
+            MemberAccessExpressionSyntax memberAccessMethodGroup => new(
+                Parameter(Identifier("x")),
+                Block(
+                    ExpressionStatement(
+                        InvocationExpression(memberAccessMethodGroup)
+                            .WithArgumentList(
+                                ArgumentList(
+                                    SingletonSeparatedList(
+                                        Argument(IdentifierName("x")))))))
+            ),
+
             // Matches list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); });
             AnonymousMethodExpressionSyntax anonymousMethod
                 when anonymousMethod.ParameterList?.Parameters.Count == 1

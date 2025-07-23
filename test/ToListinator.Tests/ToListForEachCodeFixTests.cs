@@ -270,13 +270,13 @@ public class ToListForEachCodeFixTests
                 // Process the list
                 foreach (var x in list.OrderBy(x => x)) // Trailing comment
                 {
-                    Print(x);
+                    Console.Write(x);
                 }
             }
 
             private static void Print<T>(T item)
             {
-                Console.Write(item);
+                Console.WriteLine(item);
             }
         }
         """;
