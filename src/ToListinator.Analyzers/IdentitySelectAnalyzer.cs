@@ -38,13 +38,11 @@ public class IdentitySelectAnalyzer : DiagnosticAnalyzer
                 {
                     Name.Identifier.ValueText: "Select"
                 } memberAccess,
-                ArgumentList.Arguments.Count: 1
+                ArgumentList.Arguments: [{ Expression: { } lambdaExpression }],
             })
         {
             return;
         }
-
-        var lambdaExpression = invocation.ArgumentList.Arguments[0].Expression;
         if (!IsIdentityLambda(lambdaExpression))
         {
             return;
