@@ -37,8 +37,14 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-        if (root?.FindNode(diagnosticSpan) is not InvocationExpressionSyntax invocation)
+        var invocation = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
+            .OfType<InvocationExpressionSyntax>()
+            .FirstOrDefault();
+
+        if (invocation is null)
+        {
             return;
+        }
 
         var action = CodeAction.Create(
             title: "Replace with foreach loop",
