@@ -5,7 +5,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Composition;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,20 +61,14 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         cancellationToken.ThrowIfCancellationRequested();
 
         var invocationData = FindForEachInvocation(toListInvocation);
+        var toListAccess = FindToListAccess(invocationData);
 
-        if (!IsValidForEachTransformation(
-            invocationData,
-            out var forEachAccess,
-            out var toListAccess))
+        if (toListAccess is null
+            || invocationData.ForEachInvocation?.ArgumentList.Arguments is not [{ Expression: var forEachArg }]
+            || ParseForEachArgument(forEachArg) is not { } argumentData)
         {
             return document;
         }
-
-        if (invocationData.ForEachInvocation?.ArgumentList.Arguments is not [{ Expression: var forEachArg }])
-            return document;
-
-        if (ParseForEachArgument(forEachArg) is not { } argumentData)
-            return document;
 
         var originalCollection = invocationData.OriginalCollection ?? toListAccess.Expression;
 
@@ -92,10 +85,8 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(newRoot);
     }
 
-    private static bool IsValidForEachTransformation(
-        ForEachInvocationData invocationData,
-        [NotNullWhen(true)] out MemberAccessExpressionSyntax? forEachAccess,
-        [NotNullWhen(true)] out MemberAccessExpressionSyntax? toListAccess)
+    private static MemberAccessExpressionSyntax? FindToListAccess(
+        ForEachInvocationData invocationData)
     {
         if (invocationData is
             {
@@ -111,18 +102,14 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
                                 Name.Identifier.Text: "ToList"
                             } toList
                         }
-                    } forEach
+                    }
                 }
             })
         {
-            forEachAccess = forEach;
-            toListAccess = toList;
-            return true;
+            return toList;
         }
 
-        forEachAccess = null;
-        toListAccess = null;
-        return false;
+        return null;
     }
 
 
