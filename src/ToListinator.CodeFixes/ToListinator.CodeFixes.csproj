@@ -37,8 +37,4 @@
     <ProjectReference Include="..\ToListinator.Analyzers\ToListinator.Analyzers.csproj" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
-  </ItemGroup>
 </Project>

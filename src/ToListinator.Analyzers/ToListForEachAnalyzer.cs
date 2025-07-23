@@ -1,11 +1,9 @@
-using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using System.Collections.Immutable;
 
-namespace ToListinator;
+namespace ToListinator.Analyzers;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class ToListForEachAnalyzer : DiagnosticAnalyzer

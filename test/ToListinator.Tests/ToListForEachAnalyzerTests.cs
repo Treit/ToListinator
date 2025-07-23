@@ -1,9 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using ToListinator;
-
 using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    ToListinator.ToListForEachAnalyzer,
+    ToListinator.Analyzers.ToListForEachAnalyzer,
     Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
 namespace ToListinator.Tests;

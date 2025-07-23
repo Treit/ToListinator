@@ -1,10 +1,9 @@
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using ToListinator;
 using ToListinator.CodeFixes;
 
 using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.ToListForEachAnalyzer,
+    ToListinator.Analyzers.ToListForEachAnalyzer,
     ToListinator.CodeFixes.ToListForEachCodeFixProvider,
     Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
@@ -229,6 +228,63 @@ public class ToListForEachCodeFixTests
 
         await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
     }
+
+    [Fact]
+    public async Task BasicMethodGroupWithCompoundMethodCall()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list
+                list.OrderBy(x => x).ToList().ForEach(Console.Write); // Trailing comment
+            }
+
+            private static void Print<T>(T item)
+            {
+                Console.WriteLine(item);
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var list = new List<int> { 1, 2, 3 };
+
+                // Process the list
+                foreach (var x in list.OrderBy(x => x)) // Trailing comment
+                {
+                    Console.Write(x);
+                }
+            }
+
+            private static void Print<T>(T item)
+            {
+                Console.WriteLine(item);
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(12, 9);
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
 
     [Fact]
     public async Task BasicMethodGroupWithLeadingAndTrailingTrivia()
