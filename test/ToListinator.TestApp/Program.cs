@@ -13,7 +13,7 @@ class Program
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
 
         // This should trigger an analyzer warning.
-        var any = numbers.Any();
+        var any = numbers.ToList().Count > 0;
 
         // This should trigger the analyzer warning
         numbers.ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
