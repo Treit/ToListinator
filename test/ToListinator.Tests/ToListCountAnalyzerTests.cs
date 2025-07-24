@@ -216,4 +216,88 @@ public class ToListCountAnalyzerTests
         var expected = Verify.Diagnostic().WithLocation(0);
         await Verify.VerifyAnalyzerAsync(testCode, expected);
     }
+
+    [Fact]
+    public async Task ShouldReportWarningForToListCountEqualsZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|#0:numbers.ToList().Count == 0|};
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToListCountLessThanOrEqualZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|#0:numbers.ToList().Count <= 0|};
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToListCountLessThanOne()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|#0:numbers.ToList().Count < 1|};
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForReversedEqualsZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|#0:0 == numbers.ToList().Count|};
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0);
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
 }

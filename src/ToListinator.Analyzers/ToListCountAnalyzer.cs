@@ -63,13 +63,13 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
         if (leftIsToListCount && IsZeroOrOneConstant(binaryExpression.Right))
         {
             toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Left;
-            return IsExistenceCheckPattern(binaryExpression.OperatorToken.Kind(), isLeftOperand: true);
+            return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
         }
 
         if (rightIsToListCount && IsZeroOrOneConstant(binaryExpression.Left))
         {
             toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Right;
-            return IsExistenceCheckPattern(binaryExpression.OperatorToken.Kind(), isLeftOperand: false);
+            return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
         }
 
         return false;
@@ -96,21 +96,42 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
                literal.Token.ValueText is "0" or "1";
     }
 
-    private static bool IsExistenceCheckPattern(SyntaxKind operatorKind, bool isLeftOperand)
+    private static bool IsValidCountComparisonPattern(SyntaxKind operatorKind, SyntaxNode constantNode, bool isLeftOperand)
     {
+        if (constantNode is not LiteralExpressionSyntax literal)
+            return false;
+
+        var value = literal.Token.ValueText;
+
         // For left operand (collection.ToList().Count <op> constant):
-        // > 0, >= 1, != 0 all mean "has any elements"
         if (isLeftOperand)
         {
-            return operatorKind is SyntaxKind.GreaterThanToken or
-                                  SyntaxKind.GreaterThanEqualsToken or
-                                  SyntaxKind.ExclamationEqualsToken;
+            return operatorKind switch
+            {
+                // Existence patterns: > 0, >= 1, != 0 all mean "has any elements"
+                SyntaxKind.GreaterThanToken when value == "0" => true,
+                SyntaxKind.GreaterThanEqualsToken when value == "1" => true,
+                SyntaxKind.ExclamationEqualsToken when value == "0" => true,
+                // Non-existence patterns: == 0, <= 0, < 1 all mean "has no elements"
+                SyntaxKind.EqualsEqualsToken when value == "0" => true,
+                SyntaxKind.LessThanEqualsToken when value == "0" => true,
+                SyntaxKind.LessThanToken when value == "1" => true,
+                _ => false
+            };
         }
-
+        
         // For right operand (constant <op> collection.ToList().Count):
-        // 0 <, 1 <=, 0 != all mean "has any elements"
-        return operatorKind is SyntaxKind.LessThanToken or
-                              SyntaxKind.LessThanEqualsToken or
-                              SyntaxKind.ExclamationEqualsToken;
+        return operatorKind switch
+        {
+            // Existence patterns: 0 <, 1 <=, 0 != all mean "has any elements"
+            SyntaxKind.LessThanToken when value == "0" => true,
+            SyntaxKind.LessThanEqualsToken when value == "1" => true,
+            SyntaxKind.ExclamationEqualsToken when value == "0" => true,
+            // Non-existence patterns: 0 ==, 0 >=, 1 > all mean "has no elements"
+            SyntaxKind.EqualsEqualsToken when value == "0" => true,
+            SyntaxKind.GreaterThanEqualsToken when value == "0" => true,
+            SyntaxKind.GreaterThanToken when value == "1" => true,
+            _ => false
+        };
     }
 }

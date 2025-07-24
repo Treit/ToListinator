@@ -306,4 +306,115 @@ public class ToListCountCodeFixTests
 
         await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
     }
+
+    [Fact]
+    public async Task ReplaceToListCountEqualsZeroWithNotAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = numbers.ToList().Count == 0;
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = !numbers.Any();
+            }
+        }
+        """;
+        var expected = Verify.Diagnostic().WithLocation(9, 23);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task ReplaceToListCountLessThanOrEqualZeroWithNotAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = numbers.ToList().Count <= 0;
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = !numbers.Any();
+            }
+        }
+        """;
+        var expected = Verify.Diagnostic().WithLocation(9, 23);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task ReplaceToListCountLessThanOneWithNotAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = numbers.ToList().Count < 1;
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = !numbers.Any();
+            }
+        }
+        """;
+        var expected = Verify.Diagnostic().WithLocation(9, 23);
+
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
 }
