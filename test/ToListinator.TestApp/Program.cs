@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,6 +11,9 @@ class Program
         Console.WriteLine("Testing ToListinator analyzer...");
 
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+
+        // This should trigger an analyzer warning.
+        var any = numbers.ToList().Count > 0;
 
         // This should trigger the analyzer warning
         numbers.ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
