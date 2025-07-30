@@ -387,4 +387,104 @@ public class ToListForEachCodeFixTests
 
         await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
     }
+
+    [Fact]
+    public async Task MultiLineChainedLinqOperations()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Linq;
+        using System.Collections.Generic;
+
+        class TestClass
+        {
+            void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+                numbers
+                    .Where(x => x > 2)
+                    .Select(x => x * 2)
+                    .Where(x => x < 10)
+                    .ToList()
+                    .ForEach(x => Console.WriteLine(x));
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Linq;
+        using System.Collections.Generic;
+
+        class TestClass
+        {
+            void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+                foreach (var x in numbers
+                    .Where(x => x > 2)
+                    .Select(x => x * 2)
+                    .Where(x => x < 10))
+                {
+                    Console.WriteLine(x);
+                }
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(10, 9);
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task MultiLineChainedLinqOperationsWithTrailingComment()
+    {
+        var testCode =
+        """
+        using System;
+        using System.Linq;
+        using System.Collections.Generic;
+
+        class TestClass
+        {
+            void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+                numbers
+                    .Where(x => x > 2)
+                    .Select(x => x * 2)
+                    .Where(x => x < 10) // Important filtering logic
+                    .ToList()
+                    .ForEach(x => Console.WriteLine(x));
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System;
+        using System.Linq;
+        using System.Collections.Generic;
+
+        class TestClass
+        {
+            void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+                foreach (var x in numbers
+                    .Where(x => x > 2)
+                    .Select(x => x * 2)
+                    .Where(x => x < 10)) // Important filtering logic
+                {
+                    Console.WriteLine(x);
+                }
+            }
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(10, 9);
+        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
 }
