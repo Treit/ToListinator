@@ -182,9 +182,10 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
             statement: body);
 
         // Apply trailing comments from either the LINQ chain or the semicolon
-        var allTrailingComments = savedTrailingTrivia.Concat(semicolonTrailingComments);
-        if (allTrailingComments.Any())
+        if (savedTrailingTrivia.Any() || semicolonTrailingComments.Any())
         {
+            // Combine the trailing comments
+            var allTrailingComments = savedTrailingTrivia.Concat(semicolonTrailingComments);
             // Add a space before the comment to separate it from the closing parenthesis
             var triviaWithSpace = SyntaxFactory.TriviaList(SyntaxFactory.Space).AddRange(allTrailingComments);
             foreachStatement = foreachStatement.WithCloseParenToken(
