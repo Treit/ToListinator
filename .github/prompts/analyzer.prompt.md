@@ -30,8 +30,69 @@ You can create and work with analyzer projects using this standard structure:
 - Implement `FixableDiagnosticIds` to match analyzer diagnostic IDs
 - Use `WellKnownFixAllProviders.BatchFixer` for fix-all support
 - Create immutable syntax transformations using `SyntaxFactory` methods
-- Preserve trivia (whitespace, comments) when transforming code
+- **ALWAYS use proper trivia handling patterns (see Trivia Handling section below)**
 - Handle complex expression chains by walking parent/child relationships
+
+### Trivia Handling in Code Fixes - CRITICAL PATTERNS
+
+**NEVER manually construct whitespace, indentation, or formatting. ALWAYS use NormalizeWhitespace().**
+
+Follow this exact pattern for preserving comments and formatting:
+
+```csharp
+public override SyntaxNode? VisitSomeNode(SomeNodeSyntax node)
+{
+    // 1. FIRST: Extract all relevant trivia from the original node
+    var originalLeadingTrivia = node.SomeToken.LeadingTrivia;
+    var originalTrailingTrivia = node.SomeOtherToken.TrailingTrivia;
+    
+    // 2. Create new nodes using WithoutTrivia() when moving expressions
+    var cleanExpression = node.SomeExpression.WithoutTrivia();
+    
+    // 3. Build new syntax tree, applying trivia to appropriate new locations
+    var newNode = SomeNewConstruct(cleanExpression)
+        .WithLeadingTrivia(originalLeadingTrivia)
+        .WithTrailingTrivia(originalTrailingTrivia);
+    
+    // 4. ALWAYS finish with NormalizeWhitespace() - NEVER manually format
+    return newNode.NormalizeWhitespace();
+}
+```
+
+**Key Trivia Rules:**
+- **Extract First**: Always capture original trivia before any transformations
+- **Clean Moved Nodes**: Use `WithoutTrivia()` on expressions being moved to new locations
+- **Strategic Application**: Apply trivia to the most appropriate new node (usually the outermost construct)
+- **NormalizeWhitespace**: ALWAYS call this as the final step - never manually add spaces, newlines, or indentation
+- **Preserve Intent**: Move comments to locations that maintain their original meaning
+
+**Example from ForEachNullCheckRewriter:**
+```csharp
+// Extract trivia from original locations
+var originalLeadingTrivia = node.ForEachKeyword.LeadingTrivia;
+var originalTrailingTrivia = node.CloseParenToken.TrailingTrivia;
+
+// Clean the expression being moved
+var listExpr = binExpr.Left;
+var newForeach = node
+    .WithExpression(listExpr.WithoutTrivia()) // Clean the moved expression
+    .WithForEachKeyword(newForEachKeyword)
+    .WithTrailingTrivia(); // Clear trailing trivia from inner node
+
+// Apply trivia to the new outer construct
+var ifStmt = IfStatement(/* ... */)
+    .WithLeadingTrivia(originalTrailingTrivia);
+
+// ALWAYS use NormalizeWhitespace as final step
+return ifStmt.NormalizeWhitespace();
+```
+
+**What NOT to do:**
+- ❌ `Token(TriviaList(Space), SyntaxKind.SomeToken, TriviaList())`
+- ❌ `WithLeadingTrivia(SyntaxFactory.Whitespace("    "))`
+- ❌ `WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)`
+- ❌ Manually constructing any kind of whitespace or indentation
+- ❌ Forgetting to call `NormalizeWhitespace()` at the end
 
 ### Testing Best Practices
 - Use `Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier` and `CSharpCodeFixVerifier`
@@ -48,6 +109,7 @@ using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
 - Test both positive cases (should trigger) and negative cases (should not trigger)
 - Include edge cases like method groups, anonymous methods, complex expression chains
 - For multiple diagnostics in one test, use arrays: `var expected = new[] { Verify.Diagnostic().WithLocation(10, 23), Verify.Diagnostic().WithLocation(11, 23) };`
+- Test that comments and formatting are preserved correctly in code fixes
 
 ### Project Configuration
 - Target `netstandard2.0` for analyzers and code fixes
@@ -105,7 +167,7 @@ Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 TLXXX   | Performance | Warning | Brief description of what the analyzer detects
 ```
-4. Ensure code fixes handle edge cases and preserve formatting
+4. Ensure code fixes handle edge cases and preserve formatting using proper trivia handling
 5. Test fix-all scenarios to ensure they work correctly
 
 ## Common Pitfalls and Solutions
@@ -124,4 +186,14 @@ TLXXX   | Performance | Warning | Brief description of what the analyzer detects
 - Always use `DiagnosticSeverity.Warning` for new analyzers to ensure visibility
 - Avoid `DiagnosticSeverity.Info` unless specifically required for low-priority suggestions
 
-You excel at creating high-quality, performant analyzers that provide clear diagnostics and reliable code fixes while following all Roslyn best practices and modern C# patterns.
+### Trivia and Formatting Issues
+- **Problem**: Comments get lost or placed incorrectly, manual whitespace looks wrong
+- **Root Cause**: Not following the proper trivia extraction and application pattern
+- **Solutions**: 
+  - Always extract trivia first before any node transformations
+  - Use `WithoutTrivia()` on expressions being moved to new locations  
+  - Apply preserved trivia to the most semantically appropriate location in the new syntax tree
+  - ALWAYS use `NormalizeWhitespace()` as the final step instead of manual formatting
+  - Test that comments are preserved in the correct locations
+
+You excel at creating high-quality, performant analyzers that provide clear diagnostics and reliable code fixes while following all Roslyn best practices and modern C# patterns, with particular expertise in preserving trivia and formatting correctly.
