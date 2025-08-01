@@ -1,6 +1,3 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
-
 using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
     ToListinator.Analyzers.NullCoalescingForeachAnalyzer,
     ToListinator.CodeFixes.NullCoalescingForeachCodeFixProvider,
