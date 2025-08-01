@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoslynPlayground", "RoslynPlayground.csproj", "{0ABE4393-FF2F-6EF7-C6E4-E1CE1723C099}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToListinator.Utils", "..\..\src\ToListinator.Utils\ToListinator.Utils.csproj", "{767C654C-75EE-9250-7ECC-8460508BC397}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0ABE4393-FF2F-6EF7-C6E4-E1CE1723C099}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0ABE4393-FF2F-6EF7-C6E4-E1CE1723C099}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0ABE4393-FF2F-6EF7-C6E4-E1CE1723C099}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0ABE4393-FF2F-6EF7-C6E4-E1CE1723C099}.Release|Any CPU.Build.0 = Release|Any CPU
+		{767C654C-75EE-9250-7ECC-8460508BC397}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{767C654C-75EE-9250-7ECC-8460508BC397}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{767C654C-75EE-9250-7ECC-8460508BC397}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{767C654C-75EE-9250-7ECC-8460508BC397}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FE68C816-9A9D-4EE4-A64A-09A40C8826BF}
+	EndGlobalSection
+EndGlobal
