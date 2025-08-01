@@ -44,10 +44,10 @@ public static class BlankLineFormatter
                         return true;
                     }
                 }
-                    else if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia))
-                    {
-                        eolCount = 0;
-                    }
+                else if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                {
+                    eolCount = 0;
+                }
             }
             return false;
         }
