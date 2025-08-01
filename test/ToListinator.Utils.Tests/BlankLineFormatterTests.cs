@@ -31,7 +31,7 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify if statement is still present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Single(ifStatements);
@@ -60,11 +60,11 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify if statement is still present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Single(ifStatements);
-        
+
         // Verify blank line was added (result should be longer than original)
         var originalLength = code.Length;
         var resultLength = result.ToFullString().Length;
@@ -98,7 +98,7 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify both if statements are still present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Equal(2, ifStatements.Count);
@@ -131,7 +131,7 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify both if statements are still present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Equal(2, ifStatements.Count);
@@ -159,7 +159,7 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify if statement is still present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Single(ifStatements);
@@ -201,11 +201,11 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify no if statements present
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Empty(ifStatements);
-        
+
         // Code should be essentially unchanged
         var originalCode = code.Replace("\r\n", "\n");
         var resultCode = result.ToFullString().Replace("\r\n", "\n");
@@ -232,7 +232,7 @@ public class BlankLineFormatterTests
         var result = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(root);
 
         Assert.NotNull(result);
-        
+
         // Verify the if statement is still there
         var ifStatements = result.DescendantNodes().OfType<IfStatementSyntax>().ToList();
         Assert.Single(ifStatements);

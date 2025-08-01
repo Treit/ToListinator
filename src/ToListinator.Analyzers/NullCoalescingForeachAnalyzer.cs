@@ -31,7 +31,7 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeForeachStatement(SyntaxNodeAnalysisContext context)
     {
         var foreachStatement = (ForEachStatementSyntax)context.Node;
-        
+
         if (foreachStatement.Expression is not BinaryExpressionSyntax binaryExpr ||
             !binaryExpr.IsKind(SyntaxKind.CoalesceExpression))
         {
@@ -39,7 +39,7 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
         }
 
         var fallbackExpression = binaryExpr.Right;
-        
+
         if (!IsEmptyCollectionExpression(fallbackExpression))
         {
             return;
@@ -54,24 +54,24 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
         return expression switch
         {
             // Case 1: new Something<T>() with no args (e.g. new List<string>())
-            ObjectCreationExpressionSyntax objectCreation 
+            ObjectCreationExpressionSyntax objectCreation
                 when objectCreation.ArgumentList?.Arguments.Count == 0 => true,
 
             // Case 2: Array.Empty<T>()
-            InvocationExpressionSyntax invocation 
+            InvocationExpressionSyntax invocation
                 when invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
                      memberAccess.Name.Identifier.Text == "Empty" => true,
 
             // Case 3: ImmutableArray<T>.Empty or similar static .Empty property
-            MemberAccessExpressionSyntax propertyAccess 
+            MemberAccessExpressionSyntax propertyAccess
                 when propertyAccess.Name.Identifier.Text == "Empty" => true,
 
             // Case 4: new T[0] or new T[] { }
-            ArrayCreationExpressionSyntax arrayCreation 
+            ArrayCreationExpressionSyntax arrayCreation
                 when IsEmptyArray(arrayCreation) => true,
 
             // Case 5: Enumerable.Empty<T>()
-            InvocationExpressionSyntax enumerableEmpty 
+            InvocationExpressionSyntax enumerableEmpty
                 when enumerableEmpty.Expression is MemberAccessExpressionSyntax enumAccess &&
                      enumAccess.Expression is IdentifierNameSyntax { Identifier.Text: "Enumerable" } &&
                      enumAccess.Name.Identifier.Text == "Empty" => true,

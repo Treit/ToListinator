@@ -59,7 +59,7 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
         }
 
         var nullableExpression = binaryExpression.Left;
-        
+
         // Preserve the original leading trivia (indentation and comments)
         var originalLeadingTrivia = foreachStatement.GetLeadingTrivia();
         var originalTrailingTrivia = foreachStatement.GetTrailingTrivia();

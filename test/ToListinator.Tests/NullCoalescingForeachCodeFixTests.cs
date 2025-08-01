@@ -1,7 +1,5 @@
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.Analyzers.NullCoalescingForeachAnalyzer,
-    ToListinator.CodeFixes.NullCoalescingForeachCodeFixProvider,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+using ToListinator.Analyzers;
+using ToListinator.CodeFixes;
 
 namespace ToListinator.Tests;
 
@@ -19,7 +17,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 List<string>? list = null;
-                foreach (var item in list ?? new List<string>())
+                foreach (var item in {|TL004:list ?? new List<string>()|})
                 {
                     Console.WriteLine(item);
                 }
@@ -47,8 +45,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(9, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -62,7 +64,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 string[]? array = null;
-                foreach (var item in array ?? Array.Empty<string>())
+                foreach (var item in {|TL004:array ?? Array.Empty<string>()|})
                 {
                     Console.WriteLine(item);
                 }
@@ -89,8 +91,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(8, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -106,7 +112,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 IEnumerable<int>? enumerable = null;
-                foreach (var item in enumerable ?? Enumerable.Empty<int>())
+                foreach (var item in {|TL004:enumerable ?? Enumerable.Empty<int>()|})
                 {
                     Console.WriteLine(item);
                 }
@@ -135,8 +141,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -150,7 +160,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 string[]? array = null;
-                foreach (var item in array ?? new string[0])
+                foreach (var item in {|TL004:array ?? new string[0]|})
                 {
                     Console.WriteLine(item);
                 }
@@ -177,8 +187,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(8, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -192,7 +206,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 string[]? array = null;
-                foreach (var item in array ?? new string[] { })
+                foreach (var item in {|TL004:array ?? new string[] { }|})
                 {
                     Console.WriteLine(item);
                 }
@@ -219,8 +233,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(8, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -237,7 +255,7 @@ public class NullCoalescingForeachCodeFixTests
                 List<string>? list = null;
 
                 // Check list and iterate
-                foreach (var item in list ?? new List<string>()) // Comment after
+                foreach (var item in {|TL004:list ?? new List<string>()|}) // Comment after
                 {
                     Console.WriteLine(item);
                 }
@@ -266,8 +284,12 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(11, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -283,7 +305,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 var complexList = GetList()?.Where(x => x.Length > 0).ToList();
-                foreach (var item in complexList ?? new List<string>())
+                foreach (var item in {|TL004:complexList ?? new List<string>()|})
                 {
                     Console.WriteLine(item);
                 }
@@ -316,7 +338,11 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 30);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 }

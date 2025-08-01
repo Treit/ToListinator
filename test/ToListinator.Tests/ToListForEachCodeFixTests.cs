@@ -4,11 +4,6 @@ using Microsoft.CodeAnalysis.Testing;
 using ToListinator.Analyzers;
 using ToListinator.CodeFixes;
 
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.Analyzers.ToListForEachAnalyzer,
-    ToListinator.CodeFixes.ToListForEachCodeFixProvider,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
-
 namespace ToListinator.Tests;
 
 public class ToListForEachCodeFixTests
@@ -74,7 +69,7 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                list.ToList().ForEach((x) => Console.WriteLine(x));
+                {|TL001:list.ToList().ForEach((x) => Console.WriteLine(x))|};
             }
         }
         """;
@@ -97,9 +92,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(10, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -116,7 +115,7 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x));
+                {|TL001:list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x))|};
             }
         }
         """;
@@ -139,9 +138,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(10, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -160,7 +163,7 @@ public class ToListForEachCodeFixTests
                 var list = new List<int> { 1, 2, 3 };
 
                 // Process the list
-                list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x));
+                {|TL001:list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x))|};
             }
         }
         """;
@@ -185,9 +188,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(12, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -206,7 +213,7 @@ public class ToListForEachCodeFixTests
                 var list = new List<int> { 1, 2, 3 };
 
                 // Process the list
-                list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x)); // Trailing comment
+                {|TL001:list.Select(x => x).OrderBy(x => x).Where(x => x != -1).Where(x => x > 1).ToList().ForEach(x => Console.WriteLine(x))|};  // Trailing comment
             }
         }
         """;
@@ -231,9 +238,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(12, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -252,7 +263,7 @@ public class ToListForEachCodeFixTests
                 var list = new List<int> { 1, 2, 3 };
 
                 // Process the list
-                list.OrderBy(x => x).ToList().ForEach(Console.Write); // Trailing comment
+                {|TL001:list.OrderBy(x => x).ToList().ForEach(Console.Write)|}; // Trailing comment
             }
 
             private static void Print<T>(T item)
@@ -288,8 +299,12 @@ public class ToListForEachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(12, 9);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
 
@@ -309,7 +324,7 @@ public class ToListForEachCodeFixTests
                 var list = new List<int> { 1, 2, 3 };
 
                 // Process the list
-                list.OrderBy(x => x).ToList().ForEach(Print); // Trailing comment
+                {|TL001:list.OrderBy(x => x).ToList().ForEach(Print)|}; // Trailing comment
             }
 
             private static void Print<T>(T item)
@@ -345,8 +360,12 @@ public class ToListForEachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(12, 9);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -365,7 +384,7 @@ public class ToListForEachCodeFixTests
                 var list = new List<int> { 1, 2, 3 };
 
                 // Process the list with delegate
-                list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); }); // Trailing comment
+                {|TL001:list.Where(x => x > 0).ToList().ForEach(delegate(int item) { Console.WriteLine(item); })|};  // Trailing comment
             }
         }
         """;
@@ -390,9 +409,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(12, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -409,12 +432,12 @@ public class ToListForEachCodeFixTests
             void TestMethod()
             {
                 var numbers = new[] { 1, 2, 3, 4, 5, 6 };
-                numbers
+                {|TL001:numbers
                     .Where(x => x > 2)
                     .Select(x => x * 2)
                     .Where(x => x < 10)
                     .ToList()
-                    .ForEach(x => Console.WriteLine(x));
+                    .ForEach(x => Console.WriteLine(x))|};
             }
         }
         """;
@@ -441,8 +464,12 @@ public class ToListForEachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 9);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -459,12 +486,12 @@ public class ToListForEachCodeFixTests
             void TestMethod()
             {
                 var numbers = new[] { 1, 2, 3, 4, 5, 6 };
-                numbers
+                {|TL001:numbers
                     .Where(x => x > 2)
                     .Select(x => x * 2)
                     .Where(x => x < 10) // Important filtering logic
                     .ToList()
-                    .ForEach(x => Console.WriteLine(x));
+                    .ForEach(x => Console.WriteLine(x))|};
             }
         }
         """;
@@ -491,7 +518,11 @@ public class ToListForEachCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 9);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 }
