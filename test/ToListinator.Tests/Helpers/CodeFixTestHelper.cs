@@ -8,23 +8,12 @@ namespace ToListinator.Tests;
 
 public static class CodeFixTestHelper
 {
-    private const string EditorConfigLinux = """
+    private const string EditorConfig = """
         root = true
 
         [*.cs]
         charset = utf-8
         end_of_line = lf
-        indent_style = space
-        insert_final_newline = true
-        indent_size = 4
-        """;
-
-    private const string EditorConfigWindows = """
-        root = true
-
-        [*.cs]
-        charset = utf-8
-        end_of_line = crlf
         indent_style = space
         insert_final_newline = true
         indent_size = 4
@@ -38,8 +27,6 @@ public static class CodeFixTestHelper
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : CodeFixProvider, new()
     {
-        var editorConfig = OperatingSystem.IsWindows() ? EditorConfigWindows : EditorConfigLinux;
-
         var csTest = new CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
         {
             CodeActionIndex = codeActionIndex,
@@ -48,7 +35,7 @@ public static class CodeFixTestHelper
                 Sources = { inputSource },
                 AnalyzerConfigFiles =
                 {
-                    { ("/.editorconfig", editorConfig) },
+                    { ("/.editorconfig", EditorConfig) },
                 },
             },
             FixedState =
