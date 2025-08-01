@@ -1,5 +1,7 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
+using ToListinator.Analyzers;
 using ToListinator.CodeFixes;
 
 using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
@@ -14,6 +16,7 @@ public class ToListForEachCodeFixTests
     [Fact]
     public async Task BasicLambda()
     {
+
         var testCode =
         """
         using System;
@@ -25,7 +28,7 @@ public class ToListForEachCodeFixTests
             void M()
             {
                 var list = new List<int> { 1, 2, 3 };
-                list.ToList().ForEach(x => Console.WriteLine(x));
+                {|TL001:list.ToList().ForEach(x => Console.WriteLine(x))|};
             }
         }
         """;
@@ -48,9 +51,13 @@ public class ToListForEachCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(10, 9);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListForEachAnalyzer, ToListForEachCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
