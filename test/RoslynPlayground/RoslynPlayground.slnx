@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../../src/ToListinator.Utils/ToListinator.Utils.csproj" />
+  <Project Path="RoslynPlayground.csproj" />
+</Solution>
