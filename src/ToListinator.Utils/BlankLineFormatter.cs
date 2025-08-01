@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Linq;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.Utils;
 
@@ -26,7 +27,7 @@ public static class BlankLineFormatter
             }
 
             var updated = node.WithLeadingTrivia(
-                node.GetLeadingTrivia().Prepend(SyntaxFactory.EndOfLine(Environment.NewLine))
+                node.GetLeadingTrivia().Prepend(EndOfLine(Environment.NewLine))
             );
 
             return base.VisitIfStatement(updated);
@@ -49,6 +50,7 @@ public static class BlankLineFormatter
                     eolCount = 0;
                 }
             }
+
             return false;
         }
     }
