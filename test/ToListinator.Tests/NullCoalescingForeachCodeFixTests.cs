@@ -238,7 +238,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 List<string>? list = null;
-                
+
                 // Check list and iterate
                 foreach (var item in list ?? new List<string>()) // Comment after
                 {
@@ -292,7 +292,7 @@ public class NullCoalescingForeachCodeFixTests
                     Console.WriteLine(item);
                 }
             }
-            
+
             private List<string>? GetList() => null;
         }
         """;
@@ -315,7 +315,7 @@ public class NullCoalescingForeachCodeFixTests
                     }
                 }
             }
-            
+
             private List<string>? GetList() => null;
         }
         """;

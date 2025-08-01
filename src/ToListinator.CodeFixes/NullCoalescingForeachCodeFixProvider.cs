@@ -83,7 +83,7 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
             .WithTrailingTrivia(originalTrailingTrivia);
 
         var root = await document.GetSyntaxRootAsync(cancellationToken);
-        var newRoot = root?.ReplaceNode(foreachStatement, ifStatement);
+        var newRoot = root?.ReplaceNode(foreachStatement, ifStatement).NormalizeWhitespace();
 
         if (newRoot is null)
         {
