@@ -83,7 +83,9 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
             .WithTrailingTrivia(originalTrailingTrivia);
 
         var root = await document.GetSyntaxRootAsync(cancellationToken);
-        var newRoot = root?.ReplaceNode(foreachStatement, ifStatement).NormalizeWhitespace();
+        
+        // TODO: remove the eol if possible? Could not get tests passing on both Windows and Linux without it.
+        var newRoot = root?.ReplaceNode(foreachStatement, ifStatement).NormalizeWhitespace(eol: "\n");
 
         if (newRoot is null)
         {
