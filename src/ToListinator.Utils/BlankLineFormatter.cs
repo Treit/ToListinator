@@ -21,7 +21,9 @@ public static class BlankLineFormatter
         public override SyntaxNode? VisitIfStatement(IfStatementSyntax node)
         {
             if (HasBlankLineBefore(node))
+            {
                 return base.VisitIfStatement(node);
+            }
 
             var updated = node.WithLeadingTrivia(
                 node.GetLeadingTrivia().Prepend(SyntaxFactory.EndOfLine(Environment.NewLine))
@@ -37,12 +39,15 @@ public static class BlankLineFormatter
             {
                 if (trivia.IsKind(SyntaxKind.EndOfLineTrivia))
                 {
-                    if (++eolCount >= 2) return true;
+                    if (++eolCount >= 2)
+                    {
+                        return true;
+                    }
                 }
-                else if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia))
-                {
-                    eolCount = 0;
-                }
+                    else if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                    {
+                        eolCount = 0;
+                    }
             }
             return false;
         }
