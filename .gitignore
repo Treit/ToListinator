@@ -11,6 +11,9 @@
 *.sln.docstates
 *.env
 
+# sln files. Use slnx instead.
+*.sln
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
