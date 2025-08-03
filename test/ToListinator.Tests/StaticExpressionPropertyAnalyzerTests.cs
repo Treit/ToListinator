@@ -320,4 +320,157 @@ public class StaticExpressionPropertyAnalyzerTests
                 .WithArguments("Data4"));
         await test.RunAsync();
     }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableArray()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly int[] _data = { 1, 2, 3 };
+            public static ImmutableArray<int> {|#0:Numbers|} => _data.ToImmutableArray();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("Numbers"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableList()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly int[] _data = { 1, 2, 3 };
+            public static ImmutableList<int> {|#0:Numbers|} => _data.ToImmutableList();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("Numbers"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableHashSet()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly string[] _data = { "A", "B", "C" };
+            public static ImmutableHashSet<string> {|#0:Items|} => _data.ToImmutableHashSet();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("Items"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableDictionary()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly string[] _data = { "A", "B", "C" };
+            public static ImmutableDictionary<string, int> {|#0:Map|} => _data.ToImmutableDictionary(x => x, x => x.Length);
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("Map"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableSortedSet()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly int[] _data = { 3, 1, 2 };
+            public static ImmutableSortedSet<int> {|#0:SortedNumbers|} => _data.ToImmutableSortedSet();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("SortedNumbers"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToImmutableSortedDictionary()
+    {
+        const string testCode = """
+        using System.Collections.Immutable;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly string[] _data = { "C", "A", "B" };
+            public static ImmutableSortedDictionary<string, int> {|#0:SortedMap|} => _data.ToImmutableSortedDictionary(x => x, x => x.Length);
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("SortedMap"));
+        await test.RunAsync();
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToLookup()
+    {
+        const string testCode = """
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly string[] _data = { "Apple", "Banana", "Apricot" };
+            public static ILookup<char, string> {|#0:GroupedByFirstLetter|} => _data.ToLookup(x => x[0]);
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("GroupedByFirstLetter"));
+        await test.RunAsync();
+    }
 }
