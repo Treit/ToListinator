@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Testing;
 
 namespace ToListinator.Tests;
 
-public static class CodeFixTestHelper
+public static class TestHelper
 {
     private const string EditorConfig = """
         root = true
@@ -45,6 +45,33 @@ public static class CodeFixTestHelper
             },
         };
 
+        // Add .NET 8 reference assemblies to support FrozenSet and other newer types
+        csTest.TestState.ReferenceAssemblies = ReferenceAssemblies.Net.Net80;
+        csTest.FixedState.ReferenceAssemblies = ReferenceAssemblies.Net.Net80;
+
         return csTest;
+    }
+
+    public static CSharpAnalyzerTest<TAnalyzer, DefaultVerifier> CreateAnalyzerTest<TAnalyzer>(
+        [StringSyntax("c#-test")] string source
+    )
+        where TAnalyzer : DiagnosticAnalyzer, new()
+    {
+        var test = new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
+        {
+            TestState =
+            {
+                Sources = { source },
+                AnalyzerConfigFiles =
+                {
+                    { ("/.editorconfig", EditorConfig) },
+                },
+            },
+        };
+
+        // Add .NET 8 reference assemblies to support FrozenSet and other newer types
+        test.TestState.ReferenceAssemblies = ReferenceAssemblies.Net.Net80;
+
+        return test;
     }
 }

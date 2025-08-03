@@ -130,7 +130,7 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
         }
 
         // Collection methods that may allocate
-        if (method.Name is "ToArray" or "ToList" or "ToDictionary" or "ToHashSet")
+        if (method.Name is "ToArray" or "ToList" or "ToDictionary" or "ToHashSet" or "ToFrozenSet")
         {
             return true;
         }

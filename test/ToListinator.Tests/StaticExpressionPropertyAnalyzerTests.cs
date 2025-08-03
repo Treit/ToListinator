@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
+using ToListinator.Analyzers;
 using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
     ToListinator.Analyzers.StaticExpressionPropertyAnalyzer,
     Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
@@ -295,5 +296,28 @@ public class StaticExpressionPropertyAnalyzerTests
             Verify.Diagnostic().WithLocation(1).WithArguments("Numbers")
         };
         await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToFrozenSet()
+    {
+        const string testCode = """
+        using System.Collections.Frozen;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            private static readonly HashSet<string> _data = new HashSet<string> { "A", "B", "C" };
+            public static FrozenSet<string> {|#0:Data4|} => _data.ToFrozenSet();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(
+            new DiagnosticResult("TL005", Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+                .WithLocation(0)
+                .WithArguments("Data4"));
+        await test.RunAsync();
     }
 }

@@ -45,7 +45,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -91,7 +91,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -141,7 +141,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -187,7 +187,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -233,7 +233,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -285,7 +285,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -339,7 +339,7 @@ public class NullCoalescingForeachCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<NullCoalescingForeachAnalyzer, NullCoalescingForeachCodeFixProvider>(
             testCode,
             fixedCode
         );
