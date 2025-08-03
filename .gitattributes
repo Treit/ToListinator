@@ -1,0 +1,2 @@
+# Normalize all text files to have LF line endings when committed
+* text=auto eol=lf

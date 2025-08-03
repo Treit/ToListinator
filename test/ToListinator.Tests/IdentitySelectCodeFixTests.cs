@@ -1,11 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
+using ToListinator.Analyzers;
 using ToListinator.CodeFixes;
-
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.Analyzers.IdentitySelectAnalyzer,
-    ToListinator.CodeFixes.IdentitySelectCodeFixProvider,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
 namespace ToListinator.Tests;
 
@@ -25,7 +21,7 @@ public class IdentitySelectCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = numbers.Select(x => x);
+                var result = {|TL002:numbers.Select(x => x)|};
             }
         }
         """;
@@ -46,8 +42,12 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 22);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class IdentitySelectCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = numbers.Select((x) => x);
+                var result = {|TL002:numbers.Select((x) => x)|};
             }
         }
         """;
@@ -85,8 +85,12 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 22);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -103,7 +107,7 @@ public class IdentitySelectCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = numbers.Where(x => x > 1).Select(y => y).ToList();
+                var result = numbers.Where(x => x > 1).{|TL002:Select(y => y)|}.ToList();
             }
         }
         """;
@@ -124,8 +128,12 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(10, 48);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -144,7 +152,7 @@ public class IdentitySelectCodeFixTests
                 var numbers = new[] { 1, 2, 3 };
                 var result = numbers
                     .Where(x => x > 0)
-                    .Select(item => item)
+                    .{|TL002:Select(item => item)|}
                     .OrderBy(x => x)
                     .ToArray();
             }
@@ -170,8 +178,12 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(12, 14);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -189,7 +201,7 @@ public class IdentitySelectCodeFixTests
             {
                 var numbers = new[] { 1, 2, 3 };
                 // This is a comment
-                var result = numbers.Select(x => x); // End comment
+                var result = {|TL002:numbers.Select(x => x)|}; // End comment
             }
         }
         """;
@@ -211,8 +223,12 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(11, 22);
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -229,8 +245,8 @@ public class IdentitySelectCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result1 = numbers.Select(x => x);
-                var result2 = numbers.Where(n => n > 1).Select(y => y);
+                var result1 = {|TL002:numbers.Select(x => x)|};
+                var result2 = {|TL002:numbers.Where(n => n > 1).Select(y => y)|};
             }
         }
         """;
@@ -252,11 +268,11 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var expected = new[]
-        {
-            Verify.Diagnostic().WithLocation(10, 23),
-            Verify.Diagnostic().WithLocation(11, 23)
-        };
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 }

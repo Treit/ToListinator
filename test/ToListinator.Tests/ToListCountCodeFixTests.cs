@@ -1,11 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
+using ToListinator.Analyzers;
 using ToListinator.CodeFixes;
-
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.Analyzers.ToListCountAnalyzer,
-    ToListinator.CodeFixes.ToListCountCodeFixProvider,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
 namespace ToListinator.Tests;
 
@@ -24,7 +20,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var hasAny = numbers.ToList().Count > 0;
+                var hasAny = {|TL003:numbers.ToList().Count > 0|};
             }
         }
         """;
@@ -43,9 +39,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var hasAny = numbers.ToList().Count >= 1;
+                var hasAny = {|TL003:numbers.ToList().Count >= 1|};
             }
         }
         """;
@@ -80,9 +80,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -98,7 +102,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var hasAny = numbers.ToList().Count != 0;
+                var hasAny = {|TL003:numbers.ToList().Count != 0|};
             }
         }
         """;
@@ -117,9 +121,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -135,7 +143,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var hasAny = 0 < numbers.ToList().Count;
+                var hasAny = {|TL003:0 < numbers.ToList().Count|};
             }
         }
         """;
@@ -154,9 +162,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -172,7 +184,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = numbers.Where(x => x > 1).ToList().Count > 0;
+                var result = {|TL003:numbers.Where(x => x > 1).ToList().Count > 0|};
             }
         }
         """;
@@ -191,9 +203,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -209,7 +225,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = (numbers.Where(x => x > 1).ToList().Count > 0) && true;
+                var result = ({|TL003:numbers.Where(x => x > 1).ToList().Count > 0|}) && true;
             }
         }
         """;
@@ -228,9 +244,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 23);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -246,7 +266,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var result = numbers.Select(x => x * 2).Where(x => x > 2).ToList().Count > 0;
+                var result = {|TL003:numbers.Select(x => x * 2).Where(x => x > 2).ToList().Count > 0|};
             }
         }
         """;
@@ -265,9 +285,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 22);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -283,7 +307,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var message = numbers.ToList().Count > 0 ? "Has items" : "Empty";
+                var message = {|TL003:numbers.ToList().Count > 0|} ? "Has items" : "Empty";
             }
         }
         """;
@@ -302,9 +326,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 23);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -320,7 +348,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var isEmpty = numbers.ToList().Count == 0;
+                var isEmpty = {|TL003:numbers.ToList().Count == 0|};
             }
         }
         """;
@@ -339,9 +367,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 23);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -357,7 +389,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var isEmpty = numbers.ToList().Count <= 0;
+                var isEmpty = {|TL003:numbers.ToList().Count <= 0|};
             }
         }
         """;
@@ -376,9 +408,13 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 23);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -394,7 +430,7 @@ public class ToListCountCodeFixTests
             void M()
             {
                 var numbers = new[] { 1, 2, 3 };
-                var isEmpty = numbers.ToList().Count < 1;
+                var isEmpty = {|TL003:numbers.ToList().Count < 1|};
             }
         }
         """;
@@ -413,8 +449,12 @@ public class ToListCountCodeFixTests
             }
         }
         """;
-        var expected = Verify.Diagnostic().WithLocation(9, 23);
 
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
     }
 }

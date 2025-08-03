@@ -35,27 +35,38 @@ You can create and work with analyzer projects using this standard structure:
 
 ### Trivia Handling in Code Fixes - CRITICAL PATTERNS
 
-**NEVER manually construct whitespace, indentation, or formatting. ALWAYS use NormalizeWhitespace().**
+**NEVER manually construct whitespace, indentation, or formatting. NEVER use NormalizeWhitespace() as it forces CRLF line endings.**
+
+**ALWAYS use Formatter.Annotation to let the Formatter handle proper formatting according to .editorconfig settings.**
 
 Follow this exact pattern for preserving comments and formatting:
 
 ```csharp
-public override SyntaxNode? VisitSomeNode(SomeNodeSyntax node)
+private static async Task<Document> ApplyCodeFix(
+    Document document,
+    SyntaxNode nodeToReplace,
+    CancellationToken cancellationToken)
 {
     // 1. FIRST: Extract all relevant trivia from the original node
-    var originalLeadingTrivia = node.SomeToken.LeadingTrivia;
-    var originalTrailingTrivia = node.SomeOtherToken.TrailingTrivia;
+    var originalLeadingTrivia = nodeToReplace.GetLeadingTrivia();
+    var originalTrailingTrivia = nodeToReplace.GetTrailingTrivia();
     
     // 2. Create new nodes using WithoutTrivia() when moving expressions
-    var cleanExpression = node.SomeExpression.WithoutTrivia();
+    var cleanExpression = someExpression.WithoutTrivia();
     
     // 3. Build new syntax tree, applying trivia to appropriate new locations
     var newNode = SomeNewConstruct(cleanExpression)
         .WithLeadingTrivia(originalLeadingTrivia)
         .WithTrailingTrivia(originalTrailingTrivia);
+
+    var root = await document.GetSyntaxRootAsync(cancellationToken);
     
-    // 4. ALWAYS finish with NormalizeWhitespace() - NEVER manually format
-    return newNode.NormalizeWhitespace();
+    // 4. ALWAYS use Formatter.Annotation instead of NormalizeWhitespace()
+    var newRoot = root?.ReplaceNode(
+        nodeToReplace,
+        newNode.WithAdditionalAnnotations(Formatter.Annotation));
+
+    return document.WithSyntaxRoot(newRoot);
 }
 ```
 
@@ -63,28 +74,31 @@ public override SyntaxNode? VisitSomeNode(SomeNodeSyntax node)
 - **Extract First**: Always capture original trivia before any transformations
 - **Clean Moved Nodes**: Use `WithoutTrivia()` on expressions being moved to new locations
 - **Strategic Application**: Apply trivia to the most appropriate new node (usually the outermost construct)
-- **NormalizeWhitespace**: ALWAYS call this as the final step - never manually add spaces, newlines, or indentation
+- **Formatter.Annotation**: ALWAYS use this instead of NormalizeWhitespace() - respects .editorconfig settings
 - **Preserve Intent**: Move comments to locations that maintain their original meaning
 
-**Example from ForEachNullCheckRewriter:**
+**Example from NullCoalescingForeachCodeFixProvider:**
 ```csharp
 // Extract trivia from original locations
-var originalLeadingTrivia = node.ForEachKeyword.LeadingTrivia;
-var originalTrailingTrivia = node.CloseParenToken.TrailingTrivia;
+var originalLeadingTrivia = foreachStatement.GetLeadingTrivia();
+var originalTrailingTrivia = foreachStatement.GetTrailingTrivia();
 
 // Clean the expression being moved
-var listExpr = binExpr.Left;
-var newForeach = node
-    .WithExpression(listExpr.WithoutTrivia()) // Clean the moved expression
-    .WithForEachKeyword(newForEachKeyword)
-    .WithTrailingTrivia(); // Clear trailing trivia from inner node
+var newForeachStatement = foreachStatement
+    .WithExpression(nullableExpression.WithoutTrivia())
+    .WithoutTrivia();
 
 // Apply trivia to the new outer construct
-var ifStmt = IfStatement(/* ... */)
-    .WithLeadingTrivia(originalTrailingTrivia);
+var ifStatement = IfStatement(nullCheck, Block(SingletonList<StatementSyntax>(newForeachStatement)))
+    .WithLeadingTrivia(originalLeadingTrivia)
+    .WithTrailingTrivia(originalTrailingTrivia);
 
-// ALWAYS use NormalizeWhitespace as final step
-return ifStmt.NormalizeWhitespace();
+var root = await document.GetSyntaxRootAsync(cancellationToken);
+
+// ALWAYS use Formatter.Annotation instead of NormalizeWhitespace
+var newRoot = root?.ReplaceNode(
+    foreachStatement,
+    ifStatement.WithAdditionalAnnotations(Formatter.Annotation));
 ```
 
 **What NOT to do:**
@@ -92,7 +106,8 @@ return ifStmt.NormalizeWhitespace();
 - ❌ `WithLeadingTrivia(SyntaxFactory.Whitespace("    "))`
 - ❌ `WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)`
 - ❌ Manually constructing any kind of whitespace or indentation
-- ❌ Forgetting to call `NormalizeWhitespace()` at the end
+- ❌ Using `NormalizeWhitespace()` which forces CRLF line endings
+- ❌ Not using `Formatter.Annotation` for proper formatting
 
 ### Testing Best Practices
 - Use `Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier` and `CSharpCodeFixVerifier`
@@ -187,13 +202,13 @@ TLXXX   | Performance | Warning | Brief description of what the analyzer detects
 - Avoid `DiagnosticSeverity.Info` unless specifically required for low-priority suggestions
 
 ### Trivia and Formatting Issues
-- **Problem**: Comments get lost or placed incorrectly, manual whitespace looks wrong
-- **Root Cause**: Not following the proper trivia extraction and application pattern
+- **Problem**: Comments get lost or placed incorrectly, or line endings don't match .editorconfig settings
+- **Root Cause**: Not following the proper trivia extraction and application pattern, or using NormalizeWhitespace()
 - **Solutions**: 
   - Always extract trivia first before any node transformations
   - Use `WithoutTrivia()` on expressions being moved to new locations  
   - Apply preserved trivia to the most semantically appropriate location in the new syntax tree
-  - ALWAYS use `NormalizeWhitespace()` as the final step instead of manual formatting
+  - ALWAYS use `Formatter.Annotation` instead of `NormalizeWhitespace()` for proper formatting that respects .editorconfig
   - Test that comments are preserved in the correct locations
 
 You excel at creating high-quality, performant analyzers that provide clear diagnostics and reliable code fixes while following all Roslyn best practices and modern C# patterns, with particular expertise in preserving trivia and formatting correctly.

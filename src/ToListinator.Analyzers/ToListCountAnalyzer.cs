@@ -119,7 +119,7 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
                 _ => false
             };
         }
-        
+
         // For right operand (constant <op> collection.ToList().Count):
         return operatorKind switch
         {
