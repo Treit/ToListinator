@@ -110,21 +110,59 @@ var newRoot = root?.ReplaceNode(
 - ❌ Not using `Formatter.Annotation` for proper formatting
 
 ### Testing Best Practices
-- Use `Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier` and `CSharpCodeFixVerifier`
-- Alias verifiers as `Verify` for clean test code:
-```csharp
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    YourAnalyzer, Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
-```
+- **PREFERRED**: Use `CodeFixTestHelper` class for cleaner test code instead of static `Verify` methods
 - Use raw string literals (`"""`) for test code blocks
-- **CRITICAL**: For code fix tests, always specify expected diagnostics with `Verify.Diagnostic().WithLocation(line, column)`
-- **NEVER** use `await Verify.VerifyCodeFixAsync(testCode, fixedCode)` without expected diagnostics - this won't invoke the code fix provider
-- **ALWAYS** use `await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode)` pattern for code fix tests
-- For analyzer tests, mark expected diagnostic locations with `{|#0:code|}` syntax or use `WithLocation(line, column)`
+- **ALWAYS** mark expected diagnostic locations with `{|TL00X:code|}` syntax where X is the diagnostic number (e.g., `{|TL001:someCode|}`, `{|TL004:list ?? new List<string>()|}`)
+- Use the `CodeFixTestHelper.CreateCodeFixTest<TAnalyzer, TCodeFixProvider>(testCode, fixedCode)` pattern for code fix tests
 - Test both positive cases (should trigger) and negative cases (should not trigger)
 - Include edge cases like method groups, anonymous methods, complex expression chains
-- For multiple diagnostics in one test, use arrays: `var expected = new[] { Verify.Diagnostic().WithLocation(10, 23), Verify.Diagnostic().WithLocation(11, 23) };`
 - Test that comments and formatting are preserved correctly in code fixes
+- Example test structure:
+```csharp
+[Fact]
+public async Task TestName()
+{
+    var testCode = """
+    using System;
+
+    class C
+    {
+        void M()
+        {
+            foreach (var item in {|TL004:list ?? new List<string>()|})
+            {
+                // code here
+            }
+        }
+    }
+    """;
+
+    var fixedCode = """
+    using System;
+
+    class C
+    {
+        void M()
+        {
+            if (list != null)
+            {
+                foreach (var item in list)
+                {
+                    // code here
+                }
+            }
+        }
+    }
+    """;
+
+    var test = CodeFixTestHelper.CreateCodeFixTest<YourAnalyzer, YourCodeFixProvider>(
+        testCode,
+        fixedCode
+    );
+
+    await test.RunAsync(CancellationToken.None);
+}
+```
 
 ### Project Configuration
 - Target `netstandard2.0` for analyzers and code fixes
@@ -189,9 +227,14 @@ TLXXX   | Performance | Warning | Brief description of what the analyzer detects
 
 ### Code Fix Provider Not Being Invoked
 - **Problem**: Code fix provider's `RegisterCodeFixesAsync` method never gets called during testing
-- **Root Cause**: Test is using `await Verify.VerifyCodeFixAsync(testCode, fixedCode)` without specifying expected diagnostics
-- **Solution**: Always specify expected diagnostics: `await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode)`
-- **Why**: The test framework only invokes code fix providers when it expects diagnostics to be reported
+- **Root Cause**: Using incorrect test setup or not properly configuring the `CodeFixTestHelper`
+- **Solution**: Use `CodeFixTestHelper.CreateCodeFixTest<TAnalyzer, TCodeFixProvider>(testCode, fixedCode)` with proper `{|TL00X:code|}` diagnostic markers
+- **Why**: The test framework only invokes code fix providers when diagnostics are expected and properly marked
+
+### Diagnostic Location Marking
+- **Always** use the `{|TL00X:code|}` syntax to mark exactly where diagnostics should be reported
+- The diagnostic ID (TL00X) must match your analyzer's diagnostic ID
+- Place the markers around the exact code that should trigger the diagnostic
 
 ### Finding Syntax Nodes in Code Fix Providers
 - Use `root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()` instead of `root?.FindNode(diagnosticSpan)`
