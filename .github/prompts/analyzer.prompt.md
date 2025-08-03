@@ -1,6 +1,6 @@
 ---
 mode: agent
-tools: [anzlyerToolSet]
+tools: [analyzerToolSet]
 ---
 
 # Roslyn Analyzer and Code Fix Expert
