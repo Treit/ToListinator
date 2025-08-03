@@ -272,6 +272,7 @@ public class NullCoalescingForeachCodeFixTests
             void M()
             {
                 List<string>? list = null;
+
                 // Check list and iterate
                 if (list != null)
                 {

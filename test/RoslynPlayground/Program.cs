@@ -4,6 +4,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
+var code = "// This is a comment";
+var node = CSharpSyntaxTree.ParseText(code).GetRoot();
+
+// Prints false.
+var textNonNormalized = node.ToFullString();
+Console.WriteLine(textNonNormalized.Contains("\r\n"));
+
+// Prints true.
+var textNormalized = node.NormalizeWhitespace().ToFullString();
+Console.WriteLine(textNormalized.Contains("\r\n"));
+
 var syntax = GetForEachLoopWithNullCoalescingCheck();
 
 var text = syntax.ToFullString();
@@ -36,7 +47,7 @@ Console.WriteLine("-----------------");
 var updatedSyntax = BlankLineFormatter.EnsureBlankLineBeforeIfStatements(syntax);
 Console.WriteLine(updatedSyntax.ToFullString());
 
-var code =
+code =
     """
     List<string>? list = null;
     // Check list and iterate

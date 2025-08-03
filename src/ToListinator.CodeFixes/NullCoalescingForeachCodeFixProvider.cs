@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -83,9 +84,16 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
             .WithTrailingTrivia(originalTrailingTrivia);
 
         var root = await document.GetSyntaxRootAsync(cancellationToken);
-        
-        // TODO: remove the eol if possible? Could not get tests passing on both Windows and Linux without it.
-        var newRoot = root?.ReplaceNode(foreachStatement, ifStatement).NormalizeWhitespace(eol: "\n");
+
+        // This code previously used NormalizeWhitespace, but that caused incorrect
+        // formatting and did not use the correct line endings, such as what is defined
+        // in the .editorconfig file.
+        //
+        // The *correct* way to format the code is to use Formatter.Annotation,
+        // which will result in a call to Formatter.Format later that will format the code correctly.
+        var newRoot = root?.ReplaceNode(
+            foreachStatement,
+            ifStatement.WithAdditionalAnnotations(Formatter.Annotation));
 
         if (newRoot is null)
         {
