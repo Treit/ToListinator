@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 public class TestCode
@@ -7,6 +8,9 @@ public class TestCode
     public static HashSet<string> Data => new HashSet<string> { "A", "B", "C" };
 
     public static HashSet<string> Data2 => _data ??= new HashSet<string> { "A", "B", "C" };
+
+    // Test with ReadOnlySet
+    public static ReadOnlySet<string> Data3 => new ReadOnlySet<string>(Data2);
 
     public void Test()
     {
