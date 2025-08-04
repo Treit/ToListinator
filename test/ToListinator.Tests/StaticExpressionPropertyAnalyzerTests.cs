@@ -473,4 +473,120 @@ public class StaticExpressionPropertyAnalyzerTests
                 .WithArguments("GroupedByFirstLetter"));
         await test.RunAsync();
     }
+
+    [Fact]
+    public async Task ShouldReportWarningForDiscardAssignmentWithAllocation()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            public static HashSet<string> {|#0:Data5|} => _ = new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data5");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForNullCoalescingAssignment()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data2 => _data ??= new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForRegularAssignmentWithAllocation()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            public static HashSet<string> {|#0:Data|} => _data = new HashSet<string> { "A", "B", "C" };
+            private static HashSet<string> _data;
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForIsNotNullConditionalInitialization()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data => _data is not null ? _data : new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForNotEqualsNullConditionalInitialization()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data => _data != null ? _data : new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForConditionalWithAllocatingBranches()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static bool _condition = true;
+            public static HashSet<string> {|#0:Data|} => _condition ? new HashSet<string> { "A" } : new HashSet<string> { "B" };
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForConditionalWithDifferentFieldNames()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            private static HashSet<string>? _otherData;
+            public static HashSet<string> {|#0:Data|} => _data != null ? _otherData : new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
 }

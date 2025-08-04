@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -11,6 +12,9 @@ public class TestCode
 
     // Test with ReadOnlySet
     public static ReadOnlySet<string> Data3 => new ReadOnlySet<string>(Data2);
+
+    // Test with FrozenSet
+    public static FrozenSet<string> Data4 => _data!.ToFrozenSet();
 
     public void Test()
     {
