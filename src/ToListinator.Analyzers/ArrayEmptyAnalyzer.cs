@@ -13,7 +13,7 @@ public class ArrayEmptyAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
         id: DiagnosticId,
         title: "Replace empty array creation with Array.Empty()",
-        messageFormat: "Replace 'new {0}' with 'Array.Empty<{1}>()', which avoids unnecessary allocation and clearly expresses intent.",
+        messageFormat: "Replace 'new {0}' with 'Array.Empty<{1}>()', which avoids unnecessary allocation and clearly expresses intent",
         category: "Performance",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
