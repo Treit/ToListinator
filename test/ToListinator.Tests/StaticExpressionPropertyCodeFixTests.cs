@@ -1,9 +1,6 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpCodeFixVerifier<
-    ToListinator.Analyzers.StaticExpressionPropertyAnalyzer,
-    ToListinator.CodeFixes.StaticExpressionPropertyCodeFixProvider,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+using ToListinator.Analyzers;
+using ToListinator.CodeFixes;
 
 namespace ToListinator.Tests;
 
@@ -30,8 +27,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("RoleInstance");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "RoleInstance").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -55,8 +56,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Items");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Items").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -80,8 +85,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Numbers");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Numbers").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -101,8 +110,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Parts");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Parts").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -132,8 +145,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Items");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Items").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -161,8 +178,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Items");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Items").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -186,8 +207,12 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Complex");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Complex").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -215,12 +240,13 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = new[]
-        {
-            Verify.Diagnostic().WithLocation(0).WithArguments("EnvVar"),
-            Verify.Diagnostic().WithLocation(1).WithArguments("Numbers")
-        };
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "EnvVar").WithLocation(0));
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Numbers").WithLocation(1));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -248,13 +274,14 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = new[]
-        {
-            Verify.Diagnostic().WithLocation(0).WithArguments("InternalItems"),
-            Verify.Diagnostic().WithLocation(1).WithArguments("ProtectedItems"),
-            Verify.Diagnostic().WithLocation(2).WithArguments("PrivateItems")
-        };
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "InternalItems").WithLocation(0));
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "ProtectedItems").WithLocation(1));
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "PrivateItems").WithLocation(2));
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -278,7 +305,11 @@ public class StaticExpressionPropertyCodeFixTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Items");
-        await Verify.VerifyCodeFixAsync(testCode, expected, fixedCode);
+        var test = TestHelper.CreateCodeFixTest<StaticExpressionPropertyAnalyzer, StaticExpressionPropertyCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Items").WithLocation(0));
+        await test.RunAsync(CancellationToken.None);
     }
 }

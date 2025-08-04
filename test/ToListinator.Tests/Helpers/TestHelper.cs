@@ -74,4 +74,30 @@ public static class TestHelper
 
         return test;
     }
+
+    public static CSharpAnalyzerTest<TAnalyzer, DefaultVerifier> CreateAnalyzerTest<TAnalyzer>(
+        [StringSyntax("c#-test")] string source,
+        DiagnosticResult expectedDiagnostic
+    )
+        where TAnalyzer : DiagnosticAnalyzer, new()
+    {
+        var test = CreateAnalyzerTest<TAnalyzer>(source);
+        test.ExpectedDiagnostics.Add(expectedDiagnostic);
+        return test;
+    }
+
+    public static DiagnosticResult CreateDiagnostic(string diagnosticId)
+    {
+        return new DiagnosticResult(diagnosticId, Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
+    }
+
+    public static DiagnosticResult CreateDiagnostic(string diagnosticId, params string[] arguments)
+    {
+        var result = new DiagnosticResult(diagnosticId, Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
+        if (arguments.Length > 0)
+        {
+            result = result.WithArguments(arguments);
+        }
+        return result;
+    }
 }

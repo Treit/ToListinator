@@ -1,9 +1,5 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    ToListinator.Analyzers.NullCoalescingForeachAnalyzer,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+using ToListinator.Analyzers;
 
 namespace ToListinator.Tests;
 
@@ -29,8 +25,11 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL004").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -53,8 +52,11 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL004").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -78,8 +80,11 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL004").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -101,8 +106,11 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL004").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -124,8 +132,11 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL004").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -148,7 +159,8 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -172,7 +184,8 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -194,7 +207,8 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -216,6 +230,7 @@ public class NullCoalescingForeachAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<NullCoalescingForeachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 }

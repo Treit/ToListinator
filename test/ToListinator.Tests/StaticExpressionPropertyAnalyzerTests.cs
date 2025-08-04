@@ -1,9 +1,5 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using ToListinator.Analyzers;
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    ToListinator.Analyzers.StaticExpressionPropertyAnalyzer,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
 namespace ToListinator.Tests;
 
@@ -21,8 +17,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("RoleInstance");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "RoleInstance").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -37,8 +34,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Items");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Items").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -53,8 +51,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Numbers");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Numbers").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -69,8 +68,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Map");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Map").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -83,8 +83,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Parts");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Parts").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -97,8 +98,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Upper");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Upper").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -115,8 +117,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Filtered");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Filtered").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -133,8 +136,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("List");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "List").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -147,8 +151,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Array");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Array").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -161,7 +166,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -176,7 +182,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -189,7 +196,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -202,7 +210,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -215,7 +224,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -229,7 +239,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -242,7 +253,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -258,8 +270,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Conditional");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Conditional").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -273,7 +286,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -290,12 +304,10 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = new[]
-        {
-            Verify.Diagnostic().WithLocation(0).WithArguments("EnvVar"),
-            Verify.Diagnostic().WithLocation(1).WithArguments("Numbers")
-        };
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "EnvVar").WithLocation(0));
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Numbers").WithLocation(1));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -486,8 +498,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data5");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data5").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -503,7 +516,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -519,8 +533,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -536,8 +551,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -553,8 +569,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -570,8 +587,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -588,8 +606,9 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(TestHelper.CreateDiagnostic("TL005", "Data").WithLocation(0));
+        await test.RunAsync();
     }
 
     [Fact]
@@ -605,7 +624,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -621,7 +641,8 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 
     [Fact]
@@ -637,6 +658,7 @@ public class StaticExpressionPropertyAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<StaticExpressionPropertyAnalyzer>(testCode);
+        await test.RunAsync();
     }
 }
