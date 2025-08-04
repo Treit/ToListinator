@@ -42,7 +42,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -85,7 +85,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -128,7 +128,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -178,7 +178,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -223,7 +223,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -268,7 +268,7 @@ public class IdentitySelectCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<IdentitySelectAnalyzer, IdentitySelectCodeFixProvider>(
             testCode,
             fixedCode
         );

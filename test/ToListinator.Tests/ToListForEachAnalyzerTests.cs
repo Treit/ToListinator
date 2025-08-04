@@ -1,8 +1,5 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    ToListinator.Analyzers.ToListForEachAnalyzer,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+using ToListinator.Analyzers;
 
 namespace ToListinator.Tests;
 
@@ -26,8 +23,11 @@ public class ToListForEachAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<ToListForEachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL001").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -51,7 +51,8 @@ public class ToListForEachAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<ToListForEachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -73,7 +74,8 @@ public class ToListForEachAnalyzerTests
             }
             """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<ToListForEachAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -93,7 +95,11 @@ public class ToListForEachAnalyzerTests
                 }
             }
             """;
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+
+        var test = TestHelper.CreateAnalyzerTest<ToListForEachAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL001").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 }

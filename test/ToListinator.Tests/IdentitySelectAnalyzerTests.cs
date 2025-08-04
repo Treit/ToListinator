@@ -1,8 +1,5 @@
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Verify = Microsoft.CodeAnalysis.CSharp.Testing.CSharpAnalyzerVerifier<
-    ToListinator.Analyzers.IdentitySelectAnalyzer,
-    Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
+using ToListinator.Analyzers;
 
 namespace ToListinator.Tests;
 
@@ -26,8 +23,11 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL002").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -48,8 +48,11 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL002").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -70,8 +73,11 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        var expected = Verify.Diagnostic().WithLocation(0);
-        await Verify.VerifyAnalyzerAsync(testCode, expected);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL002").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -92,7 +98,8 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -114,7 +121,8 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -140,7 +148,8 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -164,6 +173,7 @@ public class IdentitySelectAnalyzerTests
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var test = TestHelper.CreateAnalyzerTest<IdentitySelectAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
     }
 }

@@ -40,7 +40,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -81,7 +81,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -122,7 +122,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -163,7 +163,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -204,7 +204,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -245,7 +245,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -286,7 +286,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -327,7 +327,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -368,7 +368,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -409,7 +409,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
@@ -450,7 +450,7 @@ public class ToListCountCodeFixTests
         }
         """;
 
-        var test = CodeFixTestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
             testCode,
             fixedCode
         );
