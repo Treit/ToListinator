@@ -82,9 +82,9 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
             MemberAccessExpressionSyntax memberAccess => ContainsPotentialAllocation(memberAccess.Expression, semanticModel),
 
             // Conditional expressions - check both branches
-            // Exception: lazy initialization patterns like "field is not null ? field : new Obj()" should not be flagged
+            // Exception: lazy initialization with assignment like "field == null ? field = new Obj() : field" should not be flagged
             ConditionalExpressionSyntax conditional =>
-                !IsLazyInitializationPattern(conditional) &&
+                !IsLazyInitializationWithAssignment(conditional) &&
                 (ContainsPotentialAllocation(conditional.WhenTrue, semanticModel) ||
                 ContainsPotentialAllocation(conditional.WhenFalse, semanticModel)),
 
@@ -158,70 +158,101 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
                rightType?.SpecialType == SpecialType.System_String;
     }
 
-    private static bool IsLazyInitializationPattern(ConditionalExpressionSyntax conditional)
+    private static bool IsLazyInitializationWithAssignment(ConditionalExpressionSyntax conditional)
     {
-        // Check if this is a lazy initialization pattern like:
-        // field is not null ? field : new Obj()
-        // field != null ? field : new Obj()
+        // Check if this is a lazy initialization pattern with assignment like:
+        // field == null ? field = new Obj() : field
+        // field is null ? field = new Obj() : field
 
-        // The condition should be a null check
-        if (!IsNullCheck(conditional.Condition))
-        {
-            return false;
-        }
+        // We need to detect patterns where:
+        // 1. The condition checks if a field is null
+        // 2. One branch assigns to that same field
+        // 3. The other branch returns that same field
 
-        // The true branch should be a simple identifier (the field)
-        if (conditional.WhenTrue is not IdentifierNameSyntax trueIdentifier)
-        {
-            return false;
-        }
-
-        // If the condition is checking that a field is not null,
-        // and the true branch returns that same field, this is likely lazy initialization
         var checkedFieldName = GetFieldNameFromNullCheck(conditional.Condition);
-        return checkedFieldName != null && checkedFieldName == trueIdentifier.Identifier.ValueText;
+        if (checkedFieldName == null)
+        {
+            return false;
+        }
+
+        // Check if one branch is an assignment to the checked field and the other returns the field
+        var (assignmentBranch, returnBranch) = GetAssignmentAndReturnBranches(conditional);
+        
+        if (assignmentBranch == null || returnBranch == null)
+        {
+            return false;
+        }
+
+        // The assignment should be to the same field we're checking
+        var assignedFieldName = GetFieldNameFromAssignment(assignmentBranch);
+        if (assignedFieldName != checkedFieldName)
+        {
+            return false;
+        }
+
+        // The return branch should return the same field
+        var returnedFieldName = GetFieldNameFromExpression(returnBranch);
+        return returnedFieldName == checkedFieldName;
     }
 
-    private static bool IsNullCheck(ExpressionSyntax condition)
+    private static (ExpressionSyntax? assignment, ExpressionSyntax? returnExpr) GetAssignmentAndReturnBranches(ConditionalExpressionSyntax conditional)
     {
-        return condition switch
+        // Check WhenTrue for assignment, WhenFalse for return
+        if (conditional.WhenTrue is AssignmentExpressionSyntax assignmentTrue &&
+            conditional.WhenFalse is IdentifierNameSyntax)
         {
-            // Pattern: field is not null
-            IsPatternExpressionSyntax isPattern when isPattern.Pattern is UnaryPatternSyntax unaryPattern &&
-                unaryPattern.Pattern is ConstantPatternSyntax constantPattern &&
-                constantPattern.Expression.IsKind(SyntaxKind.NullLiteralExpression) => true,
+            return (assignmentTrue, conditional.WhenFalse);
+        }
 
-            // Pattern: field != null
-            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.NotEqualsExpression) &&
-                (binary.Left.IsKind(SyntaxKind.NullLiteralExpression) || binary.Right.IsKind(SyntaxKind.NullLiteralExpression)) => true,
+        // Check WhenFalse for assignment, WhenTrue for return
+        if (conditional.WhenFalse is AssignmentExpressionSyntax assignmentFalse &&
+            conditional.WhenTrue is IdentifierNameSyntax)
+        {
+            return (assignmentFalse, conditional.WhenTrue);
+        }
 
-            // Pattern: field == null (inverted logic, but still a null check)
-            BinaryExpressionSyntax binary2 when binary2.IsKind(SyntaxKind.EqualsExpression) &&
-                (binary2.Left.IsKind(SyntaxKind.NullLiteralExpression) || binary2.Right.IsKind(SyntaxKind.NullLiteralExpression)) => true,
-
-            _ => false
-        };
+        return (null, null);
     }
 
     private static string? GetFieldNameFromNullCheck(ExpressionSyntax condition)
     {
         return condition switch
         {
-            // Pattern: field is not null
-            IsPatternExpressionSyntax isPattern when isPattern.Expression is IdentifierNameSyntax identifier =>
-                identifier.Identifier.ValueText,
+            // Pattern: field == null
+            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.EqualsExpression) =>
+                binary.Left is IdentifierNameSyntax leftId && binary.Right.IsKind(SyntaxKind.NullLiteralExpression) ? leftId.Identifier.ValueText :
+                binary.Right is IdentifierNameSyntax rightId && binary.Left.IsKind(SyntaxKind.NullLiteralExpression) ? rightId.Identifier.ValueText : null,
 
             // Pattern: field != null
-            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.NotEqualsExpression) =>
-                binary.Left is IdentifierNameSyntax leftId ? leftId.Identifier.ValueText :
-                binary.Right is IdentifierNameSyntax rightId ? rightId.Identifier.ValueText : null,
+            BinaryExpressionSyntax binary2 when binary2.IsKind(SyntaxKind.NotEqualsExpression) =>
+                binary2.Left is IdentifierNameSyntax leftId2 && binary2.Right.IsKind(SyntaxKind.NullLiteralExpression) ? leftId2.Identifier.ValueText :
+                binary2.Right is IdentifierNameSyntax rightId2 && binary2.Left.IsKind(SyntaxKind.NullLiteralExpression) ? rightId2.Identifier.ValueText : null,
 
-            // Pattern: field == null (inverted, but we can still extract the field name)
-            BinaryExpressionSyntax binary2 when binary2.IsKind(SyntaxKind.EqualsExpression) =>
-                binary2.Left is IdentifierNameSyntax leftId2 ? leftId2.Identifier.ValueText :
-                binary2.Right is IdentifierNameSyntax rightId2 ? rightId2.Identifier.ValueText : null,
+            // Pattern: field is null
+            IsPatternExpressionSyntax isPattern when isPattern.Pattern is ConstantPatternSyntax constantPattern &&
+                constantPattern.Expression.IsKind(SyntaxKind.NullLiteralExpression) &&
+                isPattern.Expression is IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
 
             _ => null
         };
+    }
+
+    private static string? GetFieldNameFromAssignment(ExpressionSyntax assignment)
+    {
+        if (assignment is AssignmentExpressionSyntax assignmentExpr &&
+            assignmentExpr.Left is IdentifierNameSyntax identifier)
+        {
+            return identifier.Identifier.ValueText;
+        }
+        return null;
+    }
+
+    private static string? GetFieldNameFromExpression(ExpressionSyntax expression)
+    {
+        if (expression is IdentifierNameSyntax identifier)
+        {
+            return identifier.Identifier.ValueText;
+        }
+        return null;
     }
 }

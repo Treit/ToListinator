@@ -524,7 +524,7 @@ public class StaticExpressionPropertyAnalyzerTests
     }
 
     [Fact]
-    public async Task ShouldNotReportWarningForIsNotNullConditionalInitialization()
+    public async Task ShouldReportWarningForIsNotNullConditionalInitialization()
     {
         const string testCode = """
         using System.Collections.Generic;
@@ -532,15 +532,16 @@ public class StaticExpressionPropertyAnalyzerTests
         public class TestClass
         {
             private static HashSet<string>? _data;
-            public static HashSet<string> Data => _data is not null ? _data : new HashSet<string> { "A", "B", "C" };
+            public static HashSet<string> {|#0:Data|} => _data is not null ? _data : new HashSet<string> { "A", "B", "C" };
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
     }
 
     [Fact]
-    public async Task ShouldNotReportWarningForNotEqualsNullConditionalInitialization()
+    public async Task ShouldReportWarningForNotEqualsNullConditionalInitialization()
     {
         const string testCode = """
         using System.Collections.Generic;
@@ -548,11 +549,12 @@ public class StaticExpressionPropertyAnalyzerTests
         public class TestClass
         {
             private static HashSet<string>? _data;
-            public static HashSet<string> Data => _data != null ? _data : new HashSet<string> { "A", "B", "C" };
+            public static HashSet<string> {|#0:Data|} => _data != null ? _data : new HashSet<string> { "A", "B", "C" };
         }
         """;
 
-        await Verify.VerifyAnalyzerAsync(testCode);
+        var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
+        await Verify.VerifyAnalyzerAsync(testCode, expected);
     }
 
     [Fact]
@@ -588,5 +590,53 @@ public class StaticExpressionPropertyAnalyzerTests
 
         var expected = Verify.Diagnostic().WithLocation(0).WithArguments("Data");
         await Verify.VerifyAnalyzerAsync(testCode, expected);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForConditionalWithAssignment()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data => _data == null ? _data = new HashSet<string> { "A", "B", "C" } : _data;
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForConditionalWithAssignmentReversed()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data => _data != null ? _data : _data = new HashSet<string> { "A", "B", "C" };
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForConditionalWithIsNullAssignment()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            private static HashSet<string>? _data;
+            public static HashSet<string> Data => _data is null ? _data = new HashSet<string> { "A", "B", "C" } : _data;
+        }
+        """;
+
+        await Verify.VerifyAnalyzerAsync(testCode);
     }
 }
