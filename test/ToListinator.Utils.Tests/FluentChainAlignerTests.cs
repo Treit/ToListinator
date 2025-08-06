@@ -146,6 +146,7 @@ public class FluentChainAlignerTests
     public void AlignFluentChains_WithComments_PreservesComments()
     {
         var source = """
+            // Leading comment
             var count = list
                         .Where(x => x > 0) // Filter positive
                     .Select(x => x + 1) // Add one
@@ -153,6 +154,7 @@ public class FluentChainAlignerTests
             """;
 
         var expected = """
+            // Leading comment
             var count = list
                         .Where(x => x > 0) // Filter positive
                         .Select(x => x + 1) // Add one

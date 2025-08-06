@@ -83,7 +83,8 @@ public static class FluentChainAligner
             return base.VisitInvocationExpression(node);
         }
 
-        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+        public override SyntaxNode? VisitMemberAccessExpression(
+            MemberAccessExpressionSyntax node)
         {
             if (_isInChain && _targetIndentation != null && IsOnNewLine(node))
             {
@@ -111,7 +112,8 @@ public static class FluentChainAligner
             return chain.Any(IsOnNewLine);
         }
 
-        private static List<MemberAccessExpressionSyntax> BuildChainFromInvocation(InvocationExpressionSyntax invocation)
+        private static List<MemberAccessExpressionSyntax> BuildChainFromInvocation(
+            InvocationExpressionSyntax invocation)
         {
             var chain = new List<MemberAccessExpressionSyntax>();
             var current = invocation.Expression;
@@ -160,7 +162,10 @@ public static class FluentChainAligner
 
             // If no indentation in dot token, check trailing trivia of previous token
             // This handles cases where newline is in previous token's trailing trivia
-            indentation = GetIndentationAfterNewlineInTrailingTrivia(previousToken.TrailingTrivia, dotToken.LeadingTrivia);
+            indentation = GetIndentationAfterNewlineInTrailingTrivia(
+                previousToken.TrailingTrivia,
+                dotToken.LeadingTrivia);
+
             return indentation;
         }
 
@@ -182,7 +187,9 @@ public static class FluentChainAligner
             return indentation;
         }
 
-        private static string GetIndentationAfterNewlineInTrailingTrivia(SyntaxTriviaList trailingTrivia, SyntaxTriviaList leadingTrivia)
+        private static string GetIndentationAfterNewlineInTrailingTrivia(
+            SyntaxTriviaList trailingTrivia,
+            SyntaxTriviaList leadingTrivia)
         {
             // Check if there's a newline in trailing trivia
             bool foundNewline = trailingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
@@ -191,11 +198,14 @@ public static class FluentChainAligner
                 return "";
             }
 
-            // If there's a newline in trailing trivia, the indentation should be in the leading trivia
+            // If there's a newline in trailing trivia, the indentation should be in the
+            // leading trivia
             return GetIndentationFromTrivia(leadingTrivia);
         }
 
-        private static MemberAccessExpressionSyntax SetIndentation(MemberAccessExpressionSyntax memberAccess, string targetIndentation)
+        private static MemberAccessExpressionSyntax SetIndentation(
+            MemberAccessExpressionSyntax memberAccess,
+             string targetIndentation)
         {
             var dotToken = memberAccess.OperatorToken;
             var previousToken = dotToken.GetPreviousToken();
@@ -210,7 +220,8 @@ public static class FluentChainAligner
             }
             else
             {
-                // Newline is in dot token's leading trivia, replace the whitespace after the newline
+                // Newline is in dot token's leading trivia, replace the whitespace
+                // after the newline
                 var leadingTrivia = dotToken.LeadingTrivia.ToList();
 
                 // Find the last newline and replace all following whitespace
