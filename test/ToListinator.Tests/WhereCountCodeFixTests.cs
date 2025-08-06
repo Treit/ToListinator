@@ -1,0 +1,344 @@
+using Microsoft.CodeAnalysis.Testing;
+using ToListinator.Analyzers;
+using ToListinator.CodeFixes;
+
+namespace ToListinator.Tests;
+
+public class WhereCountCodeFixTests
+{
+    [Fact]
+    public async Task ShouldFixWhereCountWithSimpleLambda()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where(x => x > 2).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count(x => x > 2);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountWithComplexLambda()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where(x => x > 2 && x < 5).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count(x => x > 2 && x < 5);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountWithParenthesizedLambda()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where((x) => x > 2).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count((x) => x > 2);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountWithMethodGroup()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where(IsEven).Count()|};
+            }
+
+            private bool IsEven(int number) => number % 2 == 0;
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count(IsEven);
+            }
+
+            private bool IsEven(int number) => number % 2 == 0;
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountWithAnonymousMethod()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where(delegate(int x) { return x > 2; }).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count(delegate (int x) { return x > 2; });
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixChainedWhereCount()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Select(x => x * 2).Where(x => x > 4).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Select(x => x * 2).Count(x => x > 4);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountWithComments()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                // Count the filtered items
+                var count = {|#0:numbers.Where(x => x > 2).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                // Count the filtered items
+                var count = numbers.Count(x => x > 2);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixWhereCountOnPropertyAccess()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public int[] Numbers { get; set; } = { 1, 2, 3, 4, 5 };
+
+            public void TestMethod()
+            {
+                var count = {|#0:Numbers.Where(x => x > 2).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public int[] Numbers { get; set; } = { 1, 2, 3, 4, 5 };
+
+            public void TestMethod()
+            {
+                var count = Numbers.Count(x => x > 2);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+}
