@@ -462,9 +462,152 @@ public class WhereCountCodeFixTests
         """;
 
         var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateAnalyzerTest<WhereCountAnalyzer>(testCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixComplexChainWithMultipleWheres()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        namespace Test
+        {
+            internal class TestWhereCount
+            {
+                public void TestMethod()
+                {
+                    var numbers = new List<int> { 1, 2, 3 };
+                    var count = {|#0:numbers
+                        .Select(x => x * 2)
+                        .OrderBy(x => x)
+                        .Where(x => x > 1)
+                        .Where(x => x < 3)
+                        .Count()|};
+                }
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        namespace Test
+        {
+            internal class TestWhereCount
+            {
+                public void TestMethod()
+                {
+                    var numbers = new List<int> { 1, 2, 3 };
+                    var count = numbers
+                        .Select(x => x * 2)
+                        .OrderBy(x => x)
+                        .Count(x => x > 1 && x < 3);
+                }
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
         var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
             testCode,
             fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixSeparatedWhereChain()
+    {
+        // This test should expose the bug where Where calls separated by other methods
+        // are not properly combined
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        namespace Test
+        {
+            internal class TestWhereCount
+            {
+                public void TestMethod()
+                {
+                    var numbers = new List<int> { 1, 2, 3 };
+                    var count = {|#0:numbers
+                        .Where(x => x > 0)
+                        .Select(x => x * 2)
+                        .Where(x => x > 1)
+                        .Where(x => x < 10)
+                        .Count()|};
+                }
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        namespace Test
+        {
+            internal class TestWhereCount
+            {
+                public void TestMethod()
+                {
+                    var numbers = new List<int> { 1, 2, 3 };
+                    var count = numbers
+                        .Where(x => x > 0)
+                        .Select(x => x * 2)
+                        .Count(x => x > 0 && x > 1 && x < 10);
+                }
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldDetectSeparatedWhereChain()
+    {
+        // Test just the analyzer to see if it detects the pattern
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        namespace Test
+        {
+            internal class TestWhereCount
+            {
+                public void TestMethod()
+                {
+                    var numbers = new List<int> { 1, 2, 3 };
+                    var count = {|#0:numbers
+                        .Where(x => x > 0)
+                        .Select(x => x * 2)
+                        .Where(x => x > 1)
+                        .Where(x => x < 10)
+                        .Count()|};
+                }
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateAnalyzerTest<WhereCountAnalyzer>(testCode);
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync(CancellationToken.None);
     }
