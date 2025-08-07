@@ -1,0 +1,32 @@
+{
+    "analyzerToolset": {
+        "tools": [
+            "list_issues",
+            "get_issue",
+            "create_issue",
+            "update_issue",
+            "add_issue_comment",
+            "get_issue_comments",
+            "list_pull_requests",
+            "get_pull_request",
+            "create_pull_request",
+            "update_pull_request",
+            "get_pull_request_comments",
+            "get_pull_request_diff",
+            "get_pull_request_files",
+            "changes",
+            "codebase",
+            "editFiles",
+            "search",
+            "runCommands",
+            "runTasks",
+            "runTests",
+            "findTestFiles",
+            "problems",
+            "usages",
+            "testFailure"
+        ],
+        "description": "Tools for building code analyzers",
+        "icon": "tools"
+    }
+}
