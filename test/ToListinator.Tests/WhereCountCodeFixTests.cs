@@ -462,7 +462,10 @@ public class WhereCountCodeFixTests
         """;
 
         var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
-        var test = TestHelper.CreateAnalyzerTest<WhereCountAnalyzer>(testCode);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync(CancellationToken.None);
     }
@@ -565,7 +568,7 @@ public class WhereCountCodeFixTests
                     var count = numbers
                         .Where(x => x > 0)
                         .Select(x => x * 2)
-                        .Count(x => x > 0 && x > 1 && x < 10);
+                        .Count(x => x > 1 && x < 10);
                 }
             }
         }
