@@ -209,6 +209,48 @@ public class FluentChainAlignerTests
         Assert.Equal(expected, result);
     }
 
+    [Fact]
+    public void AlignSingleMethodCallUnaligned_HandlesCorrectly()
+    {
+        var source = """
+            using System;
+            using System.Collections.Generic;
+            using System.Linq;
+
+            public class TestClass
+            {
+                public void TestMethod()
+                {
+                    var numbers = new[] { 1, 2, 3, 4, 5 };
+                    var count = numbers
+            .Count(x => x > 1 && x < 3);
+                }
+            }
+        """;
+
+        var expected = """
+            using System;
+            using System.Collections.Generic;
+            using System.Linq;
+
+            public class TestClass
+            {
+                public void TestMethod()
+                {
+                    var numbers = new[] { 1, 2, 3, 4, 5 };
+                    var count = numbers
+                        .Count(x => x > 1 && x < 3);
+                }
+            }
+        """;
+
+        var result = TransformCode(source);
+
+        Assert.Equal(expected, result);
+
+
+    }
+
     private static string TransformCode(string source)
     {
         var tree = CSharpSyntaxTree.ParseText(source);

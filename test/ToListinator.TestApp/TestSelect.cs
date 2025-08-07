@@ -24,6 +24,11 @@ public class TestCode
 
         var selected = numbers.Select(x => x).Where(x => x > 1);
 
+        var count = numbers
+            .Where(x => x > 1)
+            .Where(x => x < 3)
+            .Count();
+
         // Print the numbers!
         foreach (var num in numbers ?? Array.Empty<int>()) // Will only run if numbers is not null
         {

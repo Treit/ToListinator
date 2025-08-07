@@ -33,6 +33,7 @@ You can create and work with analyzer projects using this standard structure:
 - Create immutable syntax transformations using `SyntaxFactory` methods
 - **ALWAYS use proper trivia handling patterns (see Trivia Handling section below)**
 - Handle complex expression chains by walking parent/child relationships
+- **USE UTILITY METHODS for common transformations like formatting and alignment** (see Utility Project Usage section below)
 
 ### Trivia Handling in Code Fixes - CRITICAL PATTERNS
 
@@ -252,7 +253,81 @@ TLXXX   | Performance | Warning | Brief description of what the analyzer detects
   - Always extract trivia first before any node transformations
   - Use `WithoutTrivia()` on expressions being moved to new locations  
   - Apply preserved trivia to the most semantically appropriate location in the new syntax tree
-  - ALWAYS use `Formatter.Annotation` instead of `NormalizeWhitespace()` for proper formatting that respects .editorconfig
-  - Test that comments are preserved in the correct locations
+- ALWAYS use `Formatter.Annotation` instead of `NormalizeWhitespace()` for proper formatting that respects .editorconfig
+- Test that comments are preserved in the correct locations
 
-You excel at creating high-quality, performant analyzers that provide clear diagnostics and reliable code fixes while following all Roslyn best practices and modern C# patterns, with particular expertise in preserving trivia and formatting correctly.
+### Utility Project Usage - CRITICAL FOR CONSISTENT TRANSFORMATIONS
+
+**ALWAYS leverage the `ToListinator.Utils` project for common syntax transformations instead of implementing them from scratch.**
+
+The Utils project contains specialized utilities for handling complex syntax transformations that maintain proper formatting and structure:
+
+#### FluentChainAligner Usage
+For any code fix that involves fluent method chains (like LINQ chains), **ALWAYS** use `FluentChainAligner.AlignFluentChains()` as the final step:
+
+```csharp
+private static async Task<Document> ReplaceWithCountPredicate(
+    Document document,
+    InvocationExpressionSyntax countInvocation,
+    CancellationToken cancellationToken)
+{
+    var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
+
+    // ... perform your syntax transformations ...
+
+    // Replace the node in the syntax tree
+    var newRoot = root.ReplaceNode(countInvocation, newInvocationWithTrivia);
+
+    // ALWAYS use FluentChainAligner as the final step for any fluent chains
+    newRoot = FluentChainAligner.AlignFluentChains(newRoot);
+
+    return document.WithSyntaxRoot(newRoot);
+}
+```
+
+**Key Benefits of FluentChainAligner:**
+- Handles both multi-method chains AND single method calls that are misaligned
+- Preserves comments and maintains proper indentation
+- Works with complex nested scenarios and mixed indentation styles (tabs/spaces)
+- Automatically calculates proper alignment based on the base expression
+
+**When to Use FluentChainAligner:**
+- Any code fix involving LINQ method chains (.Where(), .Select(), .Count(), etc.)
+- Transformations that modify or replace method calls in fluent chains
+- Single method calls that might be misaligned after transformation
+- Any time you're working with member access expressions that span multiple lines
+
+#### Creating New Utility Methods
+When you encounter common transformation patterns that could be reused across multiple analyzers:
+
+1. **Add utility methods to the `ToListinator.Utils` project**
+2. **Follow the pattern established by FluentChainAligner:**
+   - Static methods that take a `SyntaxNode` and return a transformed `SyntaxNode`
+   - Preserve trivia and formatting intent
+   - Handle edge cases gracefully
+   - Include comprehensive unit tests
+3. **Reference the utility in code fix providers:**
+   ```csharp
+   using ToListinator.Utils;
+   
+   // In your code fix method:
+   newRoot = YourUtilityClass.TransformSyntax(newRoot);
+   ```
+
+#### Common Transformation Utilities to Consider
+- **Indentation and alignment** (already covered by FluentChainAligner)
+- **Comment preservation patterns** for complex moves
+- **Expression simplification utilities**
+- **Multi-line formatting helpers**
+
+**Project Configuration for Utils Usage:**
+- The main ToListinator NuGet package automatically includes the Utils assembly
+- Code fix providers can directly reference `ToListinator.Utils`
+- Utils assembly is packaged in `analyzers/dotnet/cs` directory for runtime availability
+
+**Testing Utils Integration:**
+- Always test that utility transformations work correctly in your analyzer tests
+- Verify that formatting, alignment, and comments are preserved
+- Test edge cases like mixed indentation and complex nested scenarios
+
+You excel at creating high-quality, performant analyzers that provide clear diagnostics and reliable code fixes while following all Roslyn best practices and modern C# patterns, with particular expertise in preserving trivia and formatting correctly **and leveraging utility methods for consistent, reusable transformations**.

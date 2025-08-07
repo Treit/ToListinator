@@ -23,11 +23,13 @@
   <ItemGroup>
     <ProjectReference Include="../ToListinator.Analyzers/ToListinator.Analyzers.csproj" PrivateAssets="all" />
     <ProjectReference Include="../ToListinator.CodeFixes/ToListinator.CodeFixes.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../ToListinator.Utils/ToListinator.Utils.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="../ToListinator.Analyzers/bin/$(Configuration)/netstandard2.0/ToListinator.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../ToListinator.CodeFixes/bin/$(Configuration)/netstandard2.0/ToListinator.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="../ToListinator.Utils/bin/$(Configuration)/netstandard2.0/ToListinator.Utils.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../../README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
