@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
 using ToListinator.Utils;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
 
@@ -90,16 +91,16 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         }
 
         // Create the new Count(predicate) invocation
-        var newCountMemberAccess = SyntaxFactory.MemberAccessExpression(
+        var newCountMemberAccess = MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
             sourceExpression,
-            SyntaxFactory.IdentifierName("Count"));
+            IdentifierName("Count"));
 
-        var newCountInvocation = SyntaxFactory.InvocationExpression(
+        var newCountInvocation = InvocationExpression(
             newCountMemberAccess,
-            SyntaxFactory.ArgumentList(
-                SyntaxFactory.SingletonSeparatedList(
-                    SyntaxFactory.Argument(combinedPredicate))));
+            ArgumentList(
+                SingletonSeparatedList(
+                    Argument(combinedPredicate))));
 
         // Preserve the leading trivia from the original count invocation
         // and the trailing trivia as well
@@ -109,6 +110,9 @@ public class WhereCountCodeFixProvider : CodeFixProvider
 
         // Replace the entire Where().Count() chain with Count(predicate)
         var newRoot = root.ReplaceNode(countInvocation, newInvocationWithTrivia);
+
+        // Ensure proper alignment formatting
+        newRoot = FluentChainAligner.AlignFluentChains(newRoot);
 
         return document.WithSyntaxRoot(newRoot);
     }
@@ -176,15 +180,15 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         var combinedExpression = predicates[0];
         for (int i = 1; i < predicates.Count; i++)
         {
-            combinedExpression = SyntaxFactory.BinaryExpression(
+            combinedExpression = BinaryExpression(
                 SyntaxKind.LogicalAndExpression,
                 combinedExpression,
                 predicates[i]);
         }
 
         // Create a new lambda expression with the combined predicate
-        return SyntaxFactory.SimpleLambdaExpression(
-            SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName!)),
+        return SimpleLambdaExpression(
+            Parameter(Identifier(parameterName!)),
             combinedExpression);
     }
 
@@ -203,7 +207,7 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         return predicate switch
         {
             SimpleLambdaExpressionSyntax simpleLambda => simpleLambda.Parameter.Identifier.ValueText,
-            ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1 
+            ParenthesizedLambdaExpressionSyntax parenLambda when parenLambda.ParameterList.Parameters.Count == 1
                 => parenLambda.ParameterList.Parameters[0].Identifier.ValueText,
             _ => null
         };
