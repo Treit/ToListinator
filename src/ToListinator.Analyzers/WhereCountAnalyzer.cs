@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -45,43 +46,50 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Check if the expression before Count() is a Where() call
-        if (countMemberAccess.Expression is not InvocationExpressionSyntax whereInvocation)
+        // Check if we have Where() calls before Count()
+        var whereChain = CollectWhereChain(countMemberAccess.Expression);
+        if (whereChain.Count == 0)
         {
             return;
         }
 
-        if (whereInvocation is not
+        // Ensure all Where() calls have valid predicate arguments
+        foreach (var whereInvocation in whereChain)
+        {
+            if (whereInvocation.ArgumentList.Arguments.Count != 1)
             {
-                Expression: MemberAccessExpressionSyntax
-                {
-                    Name.Identifier.ValueText: "Where"
-                } whereMemberAccess,
-                ArgumentList.Arguments.Count: 1 // Where() with exactly one argument (the predicate)
-            })
-        {
-            return;
-        }
+                return;
+            }
 
-        // Ensure the Where() call has a valid predicate argument
-        var whereArgument = whereInvocation.ArgumentList.Arguments[0];
-        if (whereArgument.Expression is null)
-        {
-            return;
-        }
-
-        // Valid patterns:
-        // - Lambda expressions: x => x.Property > 0
-        // - Method groups: SomeMethod
-        // - Anonymous methods: delegate(Type x) { return x.Property > 0; }
-        if (!IsValidPredicate(whereArgument.Expression))
-        {
-            return;
+            var whereArgument = whereInvocation.ArgumentList.Arguments[0];
+            if (whereArgument.Expression is null || !IsValidPredicate(whereArgument.Expression))
+            {
+                return;
+            }
         }
 
         // Report the diagnostic on the entire Count() invocation
         var diagnostic = Diagnostic.Create(Rule, invocation.GetLocation());
         context.ReportDiagnostic(diagnostic);
+    }
+
+    private static List<InvocationExpressionSyntax> CollectWhereChain(ExpressionSyntax expression)
+    {
+        var whereChain = new List<InvocationExpressionSyntax>();
+        var current = expression;
+
+        // Walk back through the chain collecting Where() calls
+        while (current is InvocationExpressionSyntax invocation &&
+               invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+               memberAccess.Name.Identifier.ValueText == "Where")
+        {
+            whereChain.Add(invocation);
+            current = memberAccess.Expression;
+        }
+
+        // Reverse to get them in forward order (first to last)
+        whereChain.Reverse();
+        return whereChain;
     }
 
     private static bool IsValidPredicate(ExpressionSyntax expression)

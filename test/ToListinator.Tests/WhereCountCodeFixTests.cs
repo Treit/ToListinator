@@ -341,4 +341,86 @@ public class WhereCountCodeFixTests
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task ShouldFixMultipleWhereCountChain()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var someList = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+                var count = {|#0:someList.Select(x => x + 1).Where(x => x > 1).Where(x => x < 10).Where(x => x != 5).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var someList = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+                var count = someList.Select(x => x + 1).Count(x => x > 1 && x < 10 && x != 5);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldFixTwoWhereCountChain()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = {|#0:numbers.Where(x => x > 2).Where(x => x < 5).Count()|};
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3, 4, 5 };
+                var count = numbers.Count(x => x > 2 && x < 5);
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
 }
