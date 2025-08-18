@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ToListinator.Analyzers\ToListinator.Analyzers.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\ToListinator.Utils\ToListinator.Utils.csproj" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

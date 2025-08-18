@@ -61,14 +61,14 @@ public static class FluentChainAligner
         public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
         {
             // Only process the outermost invocation in a chain to avoid double processing
-            if (IsOutermostInvocation(node) && IsFluentChain(node))
+            if (IsOutermostInvocation(node) && (IsFluentChain(node) || IsSingleMethodCallOnNewLine(node)))
             {
                 var chain = BuildChainFromInvocation(node);
                 var firstOnNewLine = chain.FirstOrDefault(IsOnNewLine);
 
                 if (firstOnNewLine != null)
                 {
-                    _targetIndentation = GetIndentation(firstOnNewLine);
+                    _targetIndentation = CalculateTargetIndentation(node, firstOnNewLine);
                     _isInChain = true;
 
                     var result = base.VisitInvocationExpression(node);
@@ -109,7 +109,47 @@ public static class FluentChainAligner
         {
             // A fluent chain has at least one member access that is on a new line
             var chain = BuildChainFromInvocation(node);
-            return chain.Any(IsOnNewLine);
+            return chain.Count > 1 && chain.Any(IsOnNewLine);
+        }
+
+        private static bool IsSingleMethodCallOnNewLine(InvocationExpressionSyntax node)
+        {
+            // Check if this is a single method call on a new line
+            var chain = BuildChainFromInvocation(node);
+            return chain.Count == 1 && chain.Any(IsOnNewLine);
+        }
+
+        private static string CalculateTargetIndentation(InvocationExpressionSyntax node, MemberAccessExpressionSyntax firstOnNewLine)
+        {
+            // For single method calls, calculate indentation based on the variable assignment
+            var chain = BuildChainFromInvocation(node);
+            if (chain.Count == 1)
+            {
+                // Find the variable assignment or expression that starts the chain
+                var baseExpression = chain[0].Expression;
+                if (baseExpression != null)
+                {
+                    // Get the indentation of the base expression and add standard indentation (4 spaces)
+                    var baseIndentation = GetBaseExpressionIndentation(baseExpression);
+                    return baseIndentation + "    "; // Add 4 spaces for method call alignment
+                }
+            }
+
+            // For multi-method chains, use the existing logic
+            return GetIndentation(firstOnNewLine);
+        }
+
+        private static string GetBaseExpressionIndentation(SyntaxNode baseExpression)
+        {
+            // Find the assignment or statement that contains this expression
+            var statement = baseExpression.FirstAncestorOrSelf<StatementSyntax>();
+            if (statement != null)
+            {
+                var leadingTrivia = statement.GetLeadingTrivia();
+                return GetIndentationFromTrivia(leadingTrivia);
+            }
+
+            return "";
         }
 
         private static List<MemberAccessExpressionSyntax> BuildChainFromInvocation(
