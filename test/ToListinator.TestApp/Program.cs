@@ -12,6 +12,12 @@ class Program
 
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
 
+        // This should trigger TL007 - unnecessary ToList() in method chain
+        var items = numbers.ToList().Select(x => x * 2).ToList();
+
+        // This should trigger TL007 - unnecessary ToArray() in method chain
+        var moreItems = numbers.ToArray().Where(x => x > 3).ToList();
+
         // This should trigger an analyzer warning.
         var notany = numbers.ToList().Count <= 0;
 
