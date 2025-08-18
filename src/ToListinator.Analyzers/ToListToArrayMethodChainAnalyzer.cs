@@ -36,7 +36,9 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
 
         // Check if this is a ToList() or ToArray() call
         if (!IsToListOrToArrayCall(invocationExpression, out var methodName))
+        {
             return;
+        }
 
         // Check if this ToList/ToArray is in the middle of a method chain
         if (IsUnnecessaryInMethodChain(invocationExpression, context.SemanticModel))
@@ -139,16 +141,22 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
         // Get the symbol information for the method being called
         var symbolInfo = semanticModel.GetSymbolInfo(parentInvocation);
         if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
+        {
             return false;
+        }
 
         // Find which parameter position this argument corresponds to
         var argumentList = argument.Parent as ArgumentListSyntax;
         if (argumentList == null)
+        {
             return false;
+        }
 
         var argumentIndex = argumentList.Arguments.IndexOf(argument);
         if (argumentIndex < 0 || argumentIndex >= methodSymbol.Parameters.Length)
+        {
             return false;
+        }
 
         var parameter = methodSymbol.Parameters[argumentIndex];
         var parameterType = parameter.Type;
@@ -156,11 +164,15 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
         // Get the element type from the ToList/ToArray call
         var toListSymbolInfo = semanticModel.GetSymbolInfo(toListOrToArrayCall);
         if (toListSymbolInfo.Symbol is not IMethodSymbol toListMethod)
+        {
             return false;
+        }
 
-        if (toListMethod.ReturnType is not INamedTypeSymbol returnType || 
+        if (toListMethod.ReturnType is not INamedTypeSymbol returnType ||
             returnType.TypeArguments.Length != 1)
+        {
             return false;
+        }
 
         var elementType = returnType.TypeArguments[0];
 
@@ -173,7 +185,9 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
         // Get IEnumerable<T> type symbol
         var iEnumerableType = compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
         if (iEnumerableType == null)
+        {
             return false;
+        }
 
         // Construct IEnumerable<elementType>
         var constructedIEnumerable = iEnumerableType.Construct(elementType);
@@ -181,7 +195,7 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
         // Check if parameter type is assignable from IEnumerable<elementType>
         // This handles inheritance, interface implementation, and variance
         var conversion = compilation.HasImplicitConversion(constructedIEnumerable, parameterType);
-        
+
         return conversion;
     }
 }
