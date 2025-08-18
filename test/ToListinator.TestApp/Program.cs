@@ -26,6 +26,35 @@ class Program
 
         numbers.Where(x => x > 2).ToList().ForEach(Print);
 
+        // TL009 test cases - these should trigger Count comparison analyzer
+        if (numbers.Count() > 0) // Should trigger TL009
+            Console.WriteLine("Has items");
+
+        if (numbers.Where(x => x > 2).Count() >= 1) // Should trigger TL009
+            Console.WriteLine("Has filtered items");
+
+        if (numbers.Count() != 0) // Should trigger TL009
+            Console.WriteLine("Not empty");
+
+        if (0 < numbers.Count()) // Should trigger TL009
+            Console.WriteLine("Reversed comparison");
+
+        if (numbers.Count() == 0) // Should trigger TL009
+            Console.WriteLine("Is empty");
+
+        // This should NOT trigger TL009 (Count with predicate - handled by TL006)
+        if (numbers.Count(x => x > 3) > 0) // Should NOT trigger TL009
+            Console.WriteLine("Count with predicate");
+
+        // This should NOT trigger TL009 (List.Count property)
+        var list2 = new List<int> { 1, 2, 3 };
+        if (list2.Count > 0) // Should NOT trigger TL009
+            Console.WriteLine("List.Count property");
+
+        // This should NOT trigger TL009 (other comparisons)
+        if (numbers.Count() > 2) // Should NOT trigger TL009
+            Console.WriteLine("More than 2");
+
         // This should NOT trigger the analyzer warning (regular foreach)
         foreach (var number in numbers)
         {
