@@ -11,6 +11,7 @@ class Program
         Console.WriteLine("Testing ToListinator analyzer...");
 
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
+        IEnumerable<int> numbersEnumerable = numbers;
 
         // This should trigger an analyzer warning.
         var notany = numbers.ToList().Count <= 0;
@@ -30,20 +31,20 @@ class Program
         if (numbers.Count() > 0) // Should trigger TL009
             Console.WriteLine("Has items");
 
-        if (numbers.Where(x => x > 2).Count() >= 1) // Should trigger TL009
+        if (numbersEnumerable.Where(x => x > 2).Count() >= 1) // Should trigger TL009
             Console.WriteLine("Has filtered items");
 
-        if (numbers.Count() != 0) // Should trigger TL009
+        if (numbersEnumerable.Count() != 0) // Should trigger TL009
             Console.WriteLine("Not empty");
 
-        if (0 < numbers.Count()) // Should trigger TL009
+        if (0 < numbersEnumerable.Count()) // Should trigger TL009
             Console.WriteLine("Reversed comparison");
 
-        if (numbers.Count() == 0) // Should trigger TL009
+        if (numbersEnumerable.Count() == 0) // Should trigger TL009
             Console.WriteLine("Is empty");
 
         // This should NOT trigger TL009 (Count with predicate - handled by TL006)
-        if (numbers.Count(x => x > 3) > 0) // Should NOT trigger TL009
+        if (numbersEnumerable.Count(x => x > 3) > 0) // Should NOT trigger TL009
             Console.WriteLine("Count with predicate");
 
         // This should NOT trigger TL009 (List.Count property)
