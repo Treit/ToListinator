@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -47,7 +48,7 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
         }
 
         // Check if we have Where() calls before Count()
-        var whereChain = CollectWhereChain(countMemberAccess.Expression);
+        var whereChain = MethodChainHelper.CollectMethodChain(countMemberAccess.Expression, "Where");
         if (whereChain.Count == 0)
         {
             return;
@@ -71,25 +72,6 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
         // Report the diagnostic on the entire Count() invocation
         var diagnostic = Diagnostic.Create(Rule, invocation.GetLocation());
         context.ReportDiagnostic(diagnostic);
-    }
-
-    private static List<InvocationExpressionSyntax> CollectWhereChain(ExpressionSyntax expression)
-    {
-        var whereChain = new List<InvocationExpressionSyntax>();
-        var current = expression;
-
-        // Walk back through the chain collecting Where() calls
-        while (current is InvocationExpressionSyntax invocation &&
-               invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-               memberAccess.Name.Identifier.ValueText == "Where")
-        {
-            whereChain.Add(invocation);
-            current = memberAccess.Expression;
-        }
-
-        // Reverse to get them in forward order (first to last)
-        whereChain.Reverse();
-        return whereChain;
     }
 
     private static bool IsValidPredicate(ExpressionSyntax expression)

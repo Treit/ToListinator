@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Analyzers.Utils;
 using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
@@ -68,7 +69,7 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         }
 
         // Collect all Where() invocations in the chain
-        var whereChain = CollectWhereChain(countMemberAccess.Expression);
+        var whereChain = MethodChainHelper.CollectMethodChain(countMemberAccess.Expression, "Where");
         if (whereChain.Count == 0)
         {
             return document;
@@ -115,25 +116,6 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         newRoot = FluentChainAligner.AlignFluentChains(newRoot);
 
         return document.WithSyntaxRoot(newRoot);
-    }
-
-    private static List<InvocationExpressionSyntax> CollectWhereChain(ExpressionSyntax expression)
-    {
-        var whereChain = new List<InvocationExpressionSyntax>();
-        var current = expression;
-
-        // Walk back through the chain collecting Where() calls
-        while (current is InvocationExpressionSyntax invocation &&
-               invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-               memberAccess.Name.Identifier.ValueText == "Where")
-        {
-            whereChain.Add(invocation);
-            current = memberAccess.Expression;
-        }
-
-        // Reverse to get them in forward order (first to last)
-        whereChain.Reverse();
-        return whereChain;
     }
 
     private static ExpressionSyntax? CombineWherePredicates(List<InvocationExpressionSyntax> whereChain)

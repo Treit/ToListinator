@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
 
 namespace ToListinator.Analyzers;
@@ -47,7 +48,7 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
             var memberAccess = (MemberAccessExpressionSyntax)invocationExpression.Expression;
             var methodLocation = Location.Create(
                 invocationExpression.SyntaxTree,
-                Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(
+                TextSpan.FromBounds(
                     memberAccess.Name.SpanStart,
                     invocationExpression.Span.End));
 
