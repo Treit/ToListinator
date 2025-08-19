@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -113,24 +114,9 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static readonly ImmutableHashSet<string> MethodsWorkingWithEnumerable = ImmutableHashSet.Create(
-        // LINQ query methods
-        "Select", "Where", "SelectMany", "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
-        "GroupBy", "Join", "GroupJoin", "Concat", "Union", "Intersect", "Except", "Distinct",
-        "Skip", "Take", "SkipWhile", "TakeWhile", "Reverse", "Cast", "OfType", "Zip",
-
-        // LINQ terminal methods
-        "Contains", "Any", "All", "First", "FirstOrDefault", "Last", "LastOrDefault",
-        "Single", "SingleOrDefault", "ElementAt", "ElementAtOrDefault", "Count", "LongCount",
-        "Sum", "Min", "Max", "Average", "Aggregate",
-
-        // Enumerable conversion methods
-        "ToList", "ToArray", "ToDictionary", "ToLookup", "ToHashSet"
-    );
-
     private static bool IsMethodThatCanWorkWithoutMaterialization(string methodName)
     {
-        return MethodsWorkingWithEnumerable.Contains(methodName);
+        return MethodChainHelper.IsLinqMethod(methodName);
     }
 
     private static bool CanParameterAcceptIEnumerable(

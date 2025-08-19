@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Collections.Immutable;
 using System.Linq;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -138,7 +139,8 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
             if (memberAccess.Parent is InvocationExpressionSyntax parentInvocation)
             {
                 var methodName = memberAccess.Name.Identifier.ValueText;
-                return IsLinqMethod(methodName);
+                return MethodChainHelper.IsLinqMethod(methodName, includeConversionMethods: false) ||
+                       methodName == "ForEach"; // List<T>.ForEach, though this is discouraged
             }
         }
 
@@ -157,26 +159,6 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
         }
 
         return false;
-    }
-
-    private static readonly ImmutableHashSet<string> LinqMethods = ImmutableHashSet.Create(
-        // LINQ query methods
-        "Select", "Where", "SelectMany", "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
-        "GroupBy", "Join", "GroupJoin", "Concat", "Union", "Intersect", "Except", "Distinct",
-        "Skip", "Take", "SkipWhile", "TakeWhile", "Reverse", "Cast", "OfType", "Zip",
-
-        // LINQ aggregation methods
-        "Contains", "Any", "All", "First", "FirstOrDefault", "Last", "LastOrDefault",
-        "Single", "SingleOrDefault", "ElementAt", "ElementAtOrDefault", "Count", "LongCount",
-        "Sum", "Min", "Max", "Average", "Aggregate",
-
-        // Additional LINQ-like methods
-        "ForEach" // List<T>.ForEach, though this is discouraged
-    );
-
-    private static bool IsLinqMethod(string methodName)
-    {
-        return LinqMethods.Contains(methodName);
     }
 
     private static bool IsPassedToMethodAcceptingIEnumerable(
