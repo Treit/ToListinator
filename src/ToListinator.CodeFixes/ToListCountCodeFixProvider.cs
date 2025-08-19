@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Analyzers.Utils;
 using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
@@ -73,14 +74,14 @@ public class ToListCountCodeFixProvider : CodeFixProvider
         // Check left side for ToList().Count
         if (IsToListCountExpression(binaryExpression.Left, out var leftCollection))
         {
-            var isNegated = IsNegatedPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
+            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionAnalyzer.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
             return (leftCollection, isNegated);
         }
 
         // Check right side for ToList().Count
         if (IsToListCountExpression(binaryExpression.Right, out var rightCollection))
         {
-            var isNegated = IsNegatedPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
+            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionAnalyzer.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
             return (rightCollection, isNegated);
         }
 
@@ -107,53 +108,6 @@ public class ToListCountCodeFixProvider : CodeFixProvider
         }
 
         return false;
-    }
-
-    private static bool IsNegatedPattern(SyntaxKind operatorKind, SyntaxNode constantNode, bool isLeftOperand)
-    {
-        if (constantNode is not LiteralExpressionSyntax literal)
-        {
-            return false;
-        }
-
-        var value = literal.Token.ValueText;
-
-        // For patterns that check for existence (Any() = true):
-        // collection.ToList().Count > 0
-        // collection.ToList().Count >= 1
-        // collection.ToList().Count != 0
-        // 0 < collection.ToList().Count
-        // 1 <= collection.ToList().Count
-        // 0 != collection.ToList().Count
-
-        // For patterns that check for non-existence (!Any() = true):
-        // collection.ToList().Count == 0
-        // collection.ToList().Count <= 0
-        // collection.ToList().Count < 1
-        // 0 == collection.ToList().Count
-        // 0 >= collection.ToList().Count
-        // 1 > collection.ToList().Count
-
-        if (isLeftOperand) // collection.ToList().Count <op> constant
-        {
-            return operatorKind switch
-            {
-                SyntaxKind.EqualsEqualsToken when value == "0" => true,
-                SyntaxKind.LessThanEqualsToken when value == "0" => true,
-                SyntaxKind.LessThanToken when value == "1" => true,
-                _ => false
-            };
-        }
-        else // constant <op> collection.ToList().Count
-        {
-            return operatorKind switch
-            {
-                SyntaxKind.EqualsEqualsToken when value == "0" => true,
-                SyntaxKind.GreaterThanEqualsToken when value == "0" => true,
-                SyntaxKind.GreaterThanToken when value == "1" => true,
-                _ => false
-            };
-        }
     }
 
     private static ExpressionSyntax CreateAnyCall(ExpressionSyntax originalCollection, bool isNegated)
