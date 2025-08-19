@@ -65,11 +65,15 @@ public class ToListToArrayMethodChainCodeFixProvider : CodeFixProvider
     {
         var root = await document.GetSyntaxRootAsync(cancellationToken);
         if (root == null)
+        {
             return document;
+        }
 
         // Get the member access expression (e.g., "collection.ToList")
         if (invocationExpression.Expression is not MemberAccessExpressionSyntax memberAccess)
+        {
             return document;
+        }
 
         // The underlying expression is the part before .ToList() or .ToArray()
         var underlyingExpression = memberAccess.Expression;
