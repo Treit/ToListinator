@@ -199,7 +199,7 @@ public class TriviaHelperTests
     }
 
     [Fact]
-    public void TransferTrivia_MovesTrivaFromSourceToDestination()
+    public void TransferTrivia_MovesTriviaFromSourceToDestination()
     {
         // Arrange
         var source = ParseExpression("x")
