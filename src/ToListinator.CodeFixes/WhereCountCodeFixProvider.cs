@@ -69,7 +69,7 @@ public class WhereCountCodeFixProvider : CodeFixProvider
         }
 
         // Collect all Where() invocations in the chain
-        var whereChain = ToListinator.Analyzers.Utils.MethodChainAnalyzer.CollectMethodChain(countMemberAccess.Expression, "Where");
+        var whereChain = ToListinator.Analyzers.Utils.MethodChainHelper.CollectMethodChain(countMemberAccess.Expression, "Where");
         if (whereChain.Count == 0)
         {
             return document;

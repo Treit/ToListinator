@@ -48,7 +48,7 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
         }
 
         // Check if we have Where() calls before Count()
-        var whereChain = MethodChainAnalyzer.CollectMethodChain(countMemberAccess.Expression, "Where");
+        var whereChain = MethodChainHelper.CollectMethodChain(countMemberAccess.Expression, "Where");
         if (whereChain.Count == 0)
         {
             return;

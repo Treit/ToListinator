@@ -74,14 +74,14 @@ public class ToListCountCodeFixProvider : CodeFixProvider
         // Check left side for ToList().Count
         if (IsToListCountExpression(binaryExpression.Left, out var leftCollection))
         {
-            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionAnalyzer.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
+            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionHelper.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
             return (leftCollection, isNegated);
         }
 
         // Check right side for ToList().Count
         if (IsToListCountExpression(binaryExpression.Right, out var rightCollection))
         {
-            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionAnalyzer.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
+            var isNegated = ToListinator.Analyzers.Utils.BinaryExpressionHelper.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
             return (rightCollection, isNegated);
         }
 
