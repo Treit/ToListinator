@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace ToListinator.Analyzers;
 
@@ -69,7 +70,7 @@ public class IdentitySelectAnalyzer : DiagnosticAnalyzer
     {
         var startPos = memberAccess.Name.GetLocation().SourceSpan.Start;
         var endPos = invocation.GetLocation().SourceSpan.End;
-        var span = new Microsoft.CodeAnalysis.Text.TextSpan(startPos, endPos - startPos);
+        var span = new TextSpan(startPos, endPos - startPos);
         return Location.Create(invocation.SyntaxTree, span);
     }
 
