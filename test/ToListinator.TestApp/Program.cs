@@ -42,7 +42,73 @@ class Program
         var list = numbers.ToList();
         Console.WriteLine($"List count: {list.Count}");
 
+        // TL010 Test Cases - Unnecessary ToList() on already materialized collections
+        TestTL010();
+
         Console.WriteLine("Done!");
+    }
+
+    static void TestTL010()
+    {
+        Console.WriteLine("\n--- Testing TL010: Unnecessary ToList() on materialized collections ---");
+
+        // Case 1: List<T> -> ToList() -> LINQ operation (should trigger TL010)
+        List<int> numberList = new List<int> { 1, 2, 3, 4, 5 };
+        var result1 = numberList.ToList().Where(x => x > 2);
+
+        // Case 2: Array -> ToList() -> LINQ operation (should trigger TL010)
+        int[] numberArray = { 1, 2, 3, 4, 5 };
+        var result2 = numberArray.ToList().Select(x => x * 2);
+
+        // Case 3: HashSet -> ToList() -> LINQ operation (should trigger TL010)
+        HashSet<string> stringSet = new HashSet<string> { "a", "b", "c" };
+        var result3 = stringSet.ToList().OrderBy(x => x);
+
+        // Case 4: IList -> ToList() -> LINQ operation (should trigger TL010)
+        IList<double> valueList = new List<double> { 1.0, 2.0, 3.0 };
+        var hasAny = valueList.ToList().Any(x => x > 1.5);
+
+        // Case 5: Method parameter accepting IEnumerable (should trigger TL010)
+        ProcessItems(numberList.ToList());
+
+        // Case 6: Property access -> ToList() -> LINQ (should trigger TL010)
+        var data = new TestData { Items = new List<string> { "x", "y", "z" } };
+        var orderedItems = data.Items.ToList().OrderByDescending(x => x);
+
+        // These should NOT trigger TL010 (correct usage):
+
+        // Query result -> ToList() -> LINQ (should NOT trigger - this is fine)
+        var query = numberList.Where(x => x > 0);
+        var queryResult = query.ToList().Select(x => x * 3);
+
+        // IEnumerable result -> ToList() -> LINQ (should NOT trigger - this is fine)
+        IEnumerable<int> enumerable = GetEnumerable();
+        var enumerableResult = enumerable.ToList().Where(x => x < 10);
+
+        Console.WriteLine($"TL010 test cases completed. Results count: {result1.Count()}, {result2.Count()}, {result3.Count()}");
+        Console.WriteLine($"Has any: {hasAny}, Ordered items: {orderedItems.Count()}");
+        Console.WriteLine($"Query result: {queryResult.Count()}, Enumerable result: {enumerableResult.Count()}");
+    }
+
+    static void ProcessItems(IEnumerable<int> items)
+    {
+        foreach (var item in items.Take(3))
+        {
+            Console.WriteLine($"Processing: {item}");
+        }
+    }
+
+    static IEnumerable<int> GetEnumerable()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            yield return i;
+        }
+    }
+
+    class TestData
+    {
+        public List<string> Items { get; set; } = new List<string>();
     }
 
     static void Print<T>(T item)
