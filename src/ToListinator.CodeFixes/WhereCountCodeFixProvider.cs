@@ -27,27 +27,27 @@ public class WhereCountCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var diagnostic = context.Diagnostics
-            .First(diag => diag.Id == WhereCountAnalyzer.DiagnosticId);
-
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-
-        var countInvocation = root?.FindNode(diagnosticSpan)
-            .AncestorsAndSelf()
-            .OfType<InvocationExpressionSyntax>()
-            .FirstOrDefault();
+        var countInvocation = await CodeFixHelper.FindTargetNodeBySpan<InvocationExpressionSyntax>(
+            context,
+            WhereCountAnalyzer.DiagnosticId);
 
         if (countInvocation is null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Replace with Count(predicate)",
-            createChangedDocument: c => ReplaceWithCountPredicate(context.Document, countInvocation, c),
-            equivalenceKey: "ReplaceWithCountPredicate");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, WhereCountAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Replace with Count(predicate)",
+            "ReplaceWithCountPredicate",
+            ReplaceWithCountPredicate,
+            context,
+            countInvocation);
 
         context.RegisterCodeFix(action, diagnostic);
     }
