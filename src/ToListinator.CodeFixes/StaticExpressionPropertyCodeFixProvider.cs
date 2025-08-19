@@ -25,17 +25,26 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-        if (root == null) return;
+        if (root == null)
+        {
+            return;
+        }
 
         var diagnostic = context.Diagnostics.FirstOrDefault(d => d.Id == StaticExpressionPropertyAnalyzer.DiagnosticId);
-        if (diagnostic == null) return;
+        if (diagnostic == null)
+        {
+            return;
+        }
 
         var diagnosticSpan = diagnostic.Location.SourceSpan;
         var property = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
             .OfType<PropertyDeclarationSyntax>()
             .FirstOrDefault();
 
-        if (property?.ExpressionBody == null) return;
+        if (property?.ExpressionBody == null)
+        {
+            return;
+        }
 
         var action = CodeAction.Create(
             title: "Convert to getter-only property with initializer",
@@ -51,7 +60,10 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
         CancellationToken cancellationToken)
     {
         var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-        if (root == null) return document;
+        if (root == null)
+        {
+            return document;
+        }
 
         // Get the expression from the expression body
         var expression = property.ExpressionBody!.Expression;

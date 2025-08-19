@@ -108,6 +108,9 @@ csharp_style_expression_bodied_properties = true:suggestion
 csharp_style_expression_bodied_indexers = true:suggestion
 csharp_style_expression_bodied_accessors = true:suggestion
 
+# Modifier preferences
+csharp_prefer_braces = true:warning
+
 # Naming conventions
 dotnet_naming_rule.interfaces_should_be_prefixed_with_i.severity = suggestion
 dotnet_naming_rule.interfaces_should_be_prefixed_with_i.symbols = interface
@@ -139,3 +142,4 @@ dotnet_naming_style.prefix_interface_with_i.required_prefix = I
 
 # Diagnostics
 dotnet_diagnostic.IDE0008.severity = none
+dotnet_diagnostic.IDE0011.severity = warning

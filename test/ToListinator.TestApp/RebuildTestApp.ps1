@@ -76,4 +76,4 @@ dotnet clean
 dotnet build
 
 Write-Host "`nRebuild complete! The test application has been rebuilt with the latest analyzers." -ForegroundColor Green
-Write-Host "Check the build output above for analyzer warnings (TL001, TL002, TL003, TL004, TL005, TL006, TL009)." -ForegroundColor Yellow
+Write-Host "Check the build output above for analyzer warnings (TL001, TL002, TL003, TL004, TL005, TL006, TL007)." -ForegroundColor Yellow

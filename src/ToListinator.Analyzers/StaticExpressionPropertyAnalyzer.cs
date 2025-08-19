@@ -177,7 +177,7 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
 
         // Check if one branch is an assignment to the checked field and the other returns the field
         var (assignmentBranch, returnBranch) = GetAssignmentAndReturnBranches(conditional);
-        
+
         if (assignmentBranch == null || returnBranch == null)
         {
             return false;
