@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Utils;
 
 namespace ToListinator.CodeFixes;
 
@@ -22,27 +23,27 @@ public class IdentitySelectCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var diagnostic = context.Diagnostics
-            .First(diag => diag.Id == IdentitySelectAnalyzer.DiagnosticId);
+        var invocation = await CodeFixHelper.FindTargetNodeBySpan<InvocationExpressionSyntax>(
+            context,
+            IdentitySelectAnalyzer.DiagnosticId);
 
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-
-        var invocation = root?.FindNode(diagnosticSpan)
-            .AncestorsAndSelf()
-            .OfType<InvocationExpressionSyntax>()
-            .FirstOrDefault();
-
-        if (invocation is null)
+        if (invocation == null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Remove identity Select",
-            createChangedDocument: c => RemoveIdentitySelect(context.Document, invocation, c),
-            equivalenceKey: "RemoveIdentitySelect");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, IdentitySelectAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Remove identity Select",
+            "RemoveIdentitySelect",
+            RemoveIdentitySelect,
+            context,
+            invocation);
 
         context.RegisterCodeFix(action, diagnostic);
     }
@@ -54,18 +55,16 @@ public class IdentitySelectCodeFixProvider : CodeFixProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
-
         if (selectInvocation.Expression is MemberAccessExpressionSyntax memberAccess)
         {
             var sourceExpression = memberAccess.Expression;
 
-            // Replace the entire Select invocation with just the source expression
-            var newRoot = root.ReplaceNode(
+            // Replace the entire Select invocation with just the source expression using utility
+            return await CodeFixHelper.ReplaceNodeWithTrivia(
+                document,
                 selectInvocation,
-                sourceExpression.WithTriviaFrom(selectInvocation));
-
-            return document.WithSyntaxRoot(newRoot);
+                sourceExpression,
+                cancellationToken);
         }
 
         return document;

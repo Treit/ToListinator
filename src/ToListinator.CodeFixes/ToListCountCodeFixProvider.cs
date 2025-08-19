@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
@@ -24,23 +25,27 @@ public class ToListCountCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var diagnostic = context.Diagnostics.First(diag => diag.Id == ToListCountAnalyzer.DiagnosticId);
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-        var binaryExpression = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<BinaryExpressionSyntax>()
-            .FirstOrDefault();
+        var binaryExpression = await CodeFixHelper.FindTargetNode<BinaryExpressionSyntax>(
+            context,
+            ToListCountAnalyzer.DiagnosticId);
 
         if (binaryExpression is null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Replace with Any()",
-            createChangedDocument: c => ReplaceWithAny(context.Document, binaryExpression, c),
-            equivalenceKey: "ReplaceToListCountWithAny");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, ToListCountAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Replace with Any()",
+            "ReplaceToListCountWithAny",
+            ReplaceWithAny,
+            context,
+            binaryExpression);
 
         context.RegisterCodeFix(action, diagnostic);
     }

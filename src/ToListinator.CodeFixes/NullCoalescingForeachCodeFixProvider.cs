@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
@@ -25,23 +26,27 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-        var diagnostic = context.Diagnostics.First(diag => diag.Id == NullCoalescingForeachAnalyzer.DiagnosticId);
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
+        var binaryExpression = await CodeFixHelper.FindTargetNode<BinaryExpressionSyntax>(
+            context,
+            NullCoalescingForeachAnalyzer.DiagnosticId);
 
-        var binaryExpression = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<BinaryExpressionSyntax>()
-            .FirstOrDefault();
-
-        if (binaryExpression is null)
+        if (binaryExpression == null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Replace with null check and foreach",
-            createChangedDocument: c => ReplaceWithNullCheck(context.Document, binaryExpression, c),
-            equivalenceKey: "ReplaceWithNullCheck");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, NullCoalescingForeachAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Replace with null check and foreach",
+            "ReplaceWithNullCheck",
+            ReplaceWithNullCheck,
+            context,
+            binaryExpression);
 
         context.RegisterCodeFix(action, diagnostic);
     }
@@ -61,10 +66,6 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
 
         var nullableExpression = binaryExpression.Left;
 
-        // Preserve the original leading trivia (indentation and comments)
-        var originalLeadingTrivia = foreachStatement.GetLeadingTrivia();
-        var originalTrailingTrivia = foreachStatement.GetTrailingTrivia();
-
         // Create the new foreach statement (without the null coalescing)
         var newForeachStatement = foreachStatement
             .WithExpression(nullableExpression.WithoutTrivia())
@@ -76,24 +77,17 @@ public class NullCoalescingForeachCodeFixProvider : CodeFixProvider
             nullableExpression.WithoutTrivia(),
             LiteralExpression(SyntaxKind.NullLiteralExpression));
 
-        // Create the if statement, preserving the original indentation
+        // Create the if statement using trivia utilities
         var ifStatement = IfStatement(
             nullCheck,
             Block(SingletonList<StatementSyntax>(newForeachStatement)))
-            .WithLeadingTrivia(originalLeadingTrivia)
-            .WithTrailingTrivia(originalTrailingTrivia);
+            .WithAdditionalAnnotations(Formatter.Annotation);
+
+        // Use TriviaHelper to transfer trivia from the original foreach statement
+        var ifStatementWithTrivia = TriviaHelper.TransferTrivia(foreachStatement, ifStatement);
 
         var root = await document.GetSyntaxRootAsync(cancellationToken);
-
-        // This code previously used NormalizeWhitespace, but that caused incorrect
-        // formatting and did not use the correct line endings, such as what is defined
-        // in the .editorconfig file.
-        //
-        // The *correct* way to format the code is to use Formatter.Annotation,
-        // which will result in a call to Formatter.Format later that will format the code correctly.
-        var newRoot = root?.ReplaceNode(
-            foreachStatement,
-            ifStatement.WithAdditionalAnnotations(Formatter.Annotation));
+        var newRoot = root?.ReplaceNode(foreachStatement, ifStatementWithTrivia);
 
         if (newRoot is null)
         {

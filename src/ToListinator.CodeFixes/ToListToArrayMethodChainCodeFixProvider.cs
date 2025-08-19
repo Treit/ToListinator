@@ -9,6 +9,7 @@ using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ToListinator.Analyzers;
 using ToListinator.Utils;
 
 namespace ToListinator.CodeFixes;
@@ -17,32 +18,28 @@ namespace ToListinator.CodeFixes;
 public class ToListToArrayMethodChainCodeFixProvider : CodeFixProvider
 {
     public sealed override ImmutableArray<string> FixableDiagnosticIds =>
-        [ToListinator.Analyzers.ToListToArrayMethodChainAnalyzer.DiagnosticId];
+        [ToListToArrayMethodChainAnalyzer.DiagnosticId];
 
     public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-
         foreach (var diagnostic in context.Diagnostics.Where(d => FixableDiagnosticIds.Contains(d.Id)))
         {
-            var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-            // Find the invocation expression
-            var token = root?.FindToken(diagnosticSpan.Start);
-            var invocationExpression = token?.Parent?
-                .AncestorsAndSelf()
-                .OfType<InvocationExpressionSyntax>()
-                .FirstOrDefault();
+            // Use FindTargetNode to find the invocation by walking up from the diagnostic span
+            var invocationExpression = await CodeFixHelper.FindTargetNode<InvocationExpressionSyntax>(
+                context,
+                diagnostic.Id);
 
             if (invocationExpression != null)
             {
                 var methodName = GetMethodName(invocationExpression);
-                var action = CodeAction.Create(
-                    title: $"Remove unnecessary {methodName}() call",
-                    createChangedDocument: c => RemoveUnnecessaryCall(context.Document, invocationExpression, c),
-                    equivalenceKey: $"Remove{methodName}");
+                var action = CodeFixHelper.CreateSimpleAction(
+                    $"Remove unnecessary {methodName}() call",
+                    $"Remove{methodName}",
+                    RemoveUnnecessaryCall,
+                    context,
+                    invocationExpression);
 
                 context.RegisterCodeFix(action, diagnostic);
             }

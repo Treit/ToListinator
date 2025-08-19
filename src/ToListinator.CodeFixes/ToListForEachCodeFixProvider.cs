@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
@@ -34,23 +35,27 @@ public class ToListForEachCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var diagnostic = context.Diagnostics.First(diag => diag.Id == ToListForEachAnalyzer.DiagnosticId);
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
-        var invocation = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<InvocationExpressionSyntax>()
-            .FirstOrDefault();
+        var invocation = await CodeFixHelper.FindTargetNode<InvocationExpressionSyntax>(
+            context,
+            ToListForEachAnalyzer.DiagnosticId);
 
         if (invocation is null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Replace with foreach loop",
-            createChangedDocument: c => ReplaceWithForeachLoop(context.Document, invocation, c),
-            equivalenceKey: "ReplaceWithForeachLoop");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, ToListForEachAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Replace with foreach loop",
+            "ReplaceWithForeachLoop",
+            ReplaceWithForeachLoop,
+            context,
+            invocation);
 
         context.RegisterCodeFix(action, diagnostic);
     }

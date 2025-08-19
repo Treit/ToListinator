@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ToListinator.Analyzers;
+using ToListinator.Utils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ToListinator.CodeFixes;
@@ -24,32 +25,27 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-        if (root == null)
-        {
-            return;
-        }
-
-        var diagnostic = context.Diagnostics.FirstOrDefault(d => d.Id == StaticExpressionPropertyAnalyzer.DiagnosticId);
-        if (diagnostic == null)
-        {
-            return;
-        }
-
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-        var property = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<PropertyDeclarationSyntax>()
-            .FirstOrDefault();
+        var property = await CodeFixHelper.FindTargetNode<PropertyDeclarationSyntax>(
+            context,
+            StaticExpressionPropertyAnalyzer.DiagnosticId);
 
         if (property?.ExpressionBody == null)
         {
             return;
         }
 
-        var action = CodeAction.Create(
-            title: "Convert to getter-only property with initializer",
-            createChangedDocument: c => ConvertToGetterOnlyProperty(context.Document, property, c),
-            equivalenceKey: "ConvertToGetterOnlyProperty");
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, StaticExpressionPropertyAnalyzer.DiagnosticId);
+        if (diagnostic == null)
+        {
+            return;
+        }
+
+        var action = CodeFixHelper.CreateSimpleAction(
+            "Convert to getter-only property with initializer",
+            "ConvertToGetterOnlyProperty",
+            ConvertToGetterOnlyProperty,
+            context,
+            property);
 
         context.RegisterCodeFix(action, diagnostic);
     }
@@ -88,12 +84,10 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
             )
             .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
 
-        // Preserve trivia from the original property
-        newProperty = newProperty
-            .WithLeadingTrivia(property.GetLeadingTrivia())
-            .WithTrailingTrivia(property.GetTrailingTrivia());
+        // Use TriviaHelper to preserve trivia from the original property
+        var newPropertyWithTrivia = TriviaHelper.PreserveTrivia(newProperty, property);
 
-        var newRoot = root.ReplaceNode(property, newProperty);
+        var newRoot = root.ReplaceNode(property, newPropertyWithTrivia);
         return document.WithSyntaxRoot(newRoot);
     }
 }
