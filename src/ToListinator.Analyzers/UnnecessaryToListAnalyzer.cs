@@ -120,7 +120,6 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
         return typeName switch
         {
             "System.Collections.ArrayList" => true,
-            "System.Collections.Hashtable" => true,
             "System.Collections.Queue" => true,
             "System.Collections.Stack" => true,
             _ => false
