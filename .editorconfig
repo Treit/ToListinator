@@ -142,3 +142,4 @@ dotnet_naming_style.prefix_interface_with_i.required_prefix = I
 
 # Diagnostics
 dotnet_diagnostic.IDE0008.severity = none
+dotnet_diagnostic.IDE0011.severity = warning

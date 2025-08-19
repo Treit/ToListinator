@@ -99,14 +99,14 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
             // Lambda expressions: x => condition
             SimpleLambdaExpressionSyntax => true,
             ParenthesizedLambdaExpressionSyntax => true,
-            
+
             // Method groups: SomeMethod
             IdentifierNameSyntax => true,
             MemberAccessExpressionSyntax => true,
-            
+
             // Anonymous methods: delegate(Type x) { return condition; }
             AnonymousMethodExpressionSyntax => true,
-            
+
             _ => false
         };
     }

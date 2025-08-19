@@ -99,7 +99,9 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
     private static bool IsValidCountComparisonPattern(SyntaxKind operatorKind, SyntaxNode constantNode, bool isLeftOperand)
     {
         if (constantNode is not LiteralExpressionSyntax literal)
+        {
             return false;
+        }
 
         var value = literal.Token.ValueText;
 
