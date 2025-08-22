@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace ToListinator.Analyzers.Utils;
@@ -11,6 +12,58 @@ namespace ToListinator.Analyzers.Utils;
 /// </summary>
 public static class MethodChainHelper
 {
+    /// <summary>
+    /// LINQ query methods that work with IEnumerable&lt;T&gt;.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> LinqQueryMethods = ImmutableHashSet.Create(
+        "Select", "Where", "SelectMany", "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
+        "GroupBy", "Join", "GroupJoin", "Concat", "Union", "Intersect", "Except", "Distinct",
+        "Skip", "Take", "SkipWhile", "TakeWhile", "Reverse", "Cast", "OfType", "Zip"
+    );
+
+    /// <summary>
+    /// LINQ aggregation and terminal methods that work with IEnumerable&lt;T&gt;.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> LinqTerminalMethods = ImmutableHashSet.Create(
+        "Contains", "Any", "All", "First", "FirstOrDefault", "Last", "LastOrDefault",
+        "Single", "SingleOrDefault", "ElementAt", "ElementAtOrDefault", "Count", "LongCount",
+        "Sum", "Min", "Max", "Average", "Aggregate"
+    );
+
+    /// <summary>
+    /// LINQ conversion methods that materialize IEnumerable&lt;T&gt; into collections.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> LinqConversionMethods = ImmutableHashSet.Create(
+        "ToList", "ToArray", "ToDictionary", "ToLookup", "ToHashSet"
+    );
+
+    /// <summary>
+    /// All LINQ methods (query + terminal + conversion methods).
+    /// </summary>
+    public static readonly ImmutableHashSet<string> AllLinqMethods = LinqQueryMethods
+        .Union(LinqTerminalMethods)
+        .Union(LinqConversionMethods)
+        .ToImmutableHashSet();
+
+    /// <summary>
+    /// LINQ methods that can work without materializing the source (query + terminal methods).
+    /// </summary>
+    public static readonly ImmutableHashSet<string> LinqMethodsWorkingWithEnumerable = LinqQueryMethods
+        .Union(LinqTerminalMethods)
+        .ToImmutableHashSet();
+
+    /// <summary>
+    /// Checks if a method name is a LINQ method.
+    /// </summary>
+    /// <param name="methodName">The method name to check</param>
+    /// <param name="includeConversionMethods">Whether to include conversion methods like ToList(), ToArray()</param>
+    /// <returns>True if the method is a LINQ method</returns>
+    public static bool IsLinqMethod(string methodName, bool includeConversionMethods = true)
+    {
+        return includeConversionMethods
+            ? AllLinqMethods.Contains(methodName)
+            : LinqMethodsWorkingWithEnumerable.Contains(methodName);
+    }
     /// <summary>
     /// Collects all invocations in a chain for a specific method name.
     /// For example, given "items.Where(x => x > 0).Where(x => x < 10).Count()",
