@@ -189,6 +189,169 @@ When analyzing expressions like `collection.Where(x => x > 0).ToList().ForEach(a
 - Create comprehensive pattern matching for different expression forms
 - Use record types for clean data modeling of syntax patterns
 
+### Pattern Matching Excellence - CRITICAL FOR MODERN C# CODE
+
+**ALWAYS prefer modern C# pattern matching over traditional if-else chains and manual property checking. Pattern matching produces more readable, concise, and maintainable code.**
+
+#### Inferior Traditional Approach (AVOID):
+```csharp
+// ❌ BAD: Verbose, nested, harder to read
+public static bool IsSpanCollectionExpression(CollectionExpressionSyntax collectionExpr, SemanticModel semanticModel)
+{
+    var typeInfo = semanticModel.GetTypeInfo(collectionExpr);
+    var convertedType = typeInfo.ConvertedType;
+
+    if (convertedType == null)
+    {
+        return false;
+    }
+
+    if (convertedType is INamedTypeSymbol namedType && namedType.IsGenericType)
+    {
+        var typeName = namedType.OriginalDefinition.ToDisplayString();
+
+        return typeName == "System.Span<T>" || typeName == "System.ReadOnlySpan<T>";
+    }
+
+    return false;
+}
+```
+
+#### Superior Pattern Matching Approach (PREFER):
+```csharp
+// ✅ GOOD: Concise, readable, modern
+public static bool IsSpanCollectionExpression(CollectionExpressionSyntax collectionExpr, SemanticModel semanticModel)
+{
+    var typeInfo = semanticModel.GetTypeInfo(collectionExpr);
+    var convertedType = typeInfo.ConvertedType;
+
+    return convertedType is INamedTypeSymbol
+    {
+        Arity: 1,
+        ContainingNamespace:
+        {
+            Name: "System",
+            ContainingNamespace.IsGlobalNamespace: true,
+        },
+        Name: "Span" or "ReadOnlySpan",
+    };
+}
+```
+
+#### Key Pattern Matching Benefits:
+- **Property Patterns**: `{ IsGenericType: true }` checks properties inline
+- **Nested Patterns**: `ContainingNamespace: { Name: "System" }` navigates object hierarchies cleanly
+- **Pattern Combinators**: `"Span" or "ReadOnlySpan"` uses modern `or` patterns
+- **Null Safety**: Pattern matching handles null automatically
+- **Single Expression**: Eliminates nested if-statements and early returns
+- **Semantic Correctness**: Use `Name` instead of `MetadataName`, and `Arity` for generic type parameter count
+
+#### Pattern Matching Best Practices:
+
+**1. Use Property Patterns for Type Checking:**
+```csharp
+// ✅ GOOD: Clean property pattern
+return node is InvocationExpressionSyntax
+{
+    Expression: MemberAccessExpressionSyntax
+    {
+        Name.Identifier.ValueText: "ToList",
+        Expression: not null
+    }
+};
+
+// ❌ BAD: Verbose nested checks
+if (node is InvocationExpressionSyntax invocation)
+{
+    if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
+    {
+        if (memberAccess.Name?.Identifier.ValueText == "ToList")
+        {
+            return memberAccess.Expression != null;
+        }
+    }
+}
+return false;
+```
+
+**2. Use Pattern Combinators:**
+```csharp
+// ✅ GOOD: Modern pattern combinators
+return methodName is "ToList" or "ToArray" or "ToHashSet";
+
+// ❌ BAD: Multiple equality checks
+return methodName == "ToList" || methodName == "ToArray" || methodName == "ToHashSet";
+```
+
+**3. Use Switch Expressions for Complex Logic:**
+```csharp
+// ✅ GOOD: Switch expression with patterns
+return operation switch
+{
+    IInvocationOperation { TargetMethod.Name: "ToList" } => true,
+    IMemberAccessOperation { Member.Name: "Count" } => true,
+    IConditionalOperation { Condition: not null } => false,
+    _ => false
+};
+
+// ❌ BAD: Traditional switch with casts
+switch (operation)
+{
+    case IInvocationOperation invocation:
+        return invocation.TargetMethod.Name == "ToList";
+    case IMemberAccessOperation memberAccess:
+        return memberAccess.Member.Name == "Count";
+    default:
+        return false;
+}
+```
+
+**4. Pattern Match for Roslyn Symbol Comparisons:**
+```csharp
+// ✅ GOOD: Direct symbol pattern matching
+return typeSymbol is INamedTypeSymbol
+{
+    ContainingNamespace: { Name: "System.Collections.Generic" },
+    Name: "List",
+    Arity: 1
+};
+
+// ❌ BAD: Manual string building and comparison
+if (typeSymbol is INamedTypeSymbol namedType)
+{
+    var fullName = $"{namedType.ContainingNamespace?.Name}.{namedType.Name}";
+    return fullName == "System.Collections.Generic.List" && namedType.Arity == 1;
+}
+```
+
+**5. Use Records with Pattern Matching for Complex Analysis:**
+```csharp
+// Define record for analysis results
+public record MethodChainAnalysis(bool HasToList, bool HasForEach, string? TargetMethod);
+
+// Pattern match on the record
+return analysis switch
+{
+    { HasToList: true, HasForEach: true } => CreateDiagnostic(TL001),
+    { TargetMethod: "Count" } => CreateDiagnostic(TL003),
+    _ => null
+};
+```
+
+**When to Use Pattern Matching:**
+- **Type checking with property validation** (most common in analyzers)
+- **Roslyn symbol analysis** (checking namespaces, type names, arities)
+- **Complex conditional logic** that can be expressed as patterns
+- **Any scenario with nested if-statements** checking object properties
+- **Method name or identifier validation** with multiple options
+
+**Pattern Matching in Analyzer Context:**
+- Prefer `Arity` over manual generic parameter counting
+- Use `Name` instead of `MetadataName` for regular type checking
+- Leverage nested patterns for namespace hierarchy checking
+- Combine patterns with `or`/`and` for multiple condition checks
+- Use `not null` patterns instead of explicit null checks
+
 ## When Creating New Analyzer Projects
 
 1. Create the three-project structure with proper references
