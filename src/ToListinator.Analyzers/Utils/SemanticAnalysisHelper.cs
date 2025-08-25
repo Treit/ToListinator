@@ -15,23 +15,22 @@ public static class SemanticAnalysisHelper
     /// <param name="collectionExpr">The collection expression to analyze</param>
     /// <param name="semanticModel">The semantic model for type analysis</param>
     /// <returns>True if the collection expression targets a span type; false otherwise</returns>
-    public static bool IsSpanCollectionExpression(CollectionExpressionSyntax collectionExpr, SemanticModel semanticModel)
+    public static bool IsSpanCollectionExpression(
+        CollectionExpressionSyntax collectionExpr,
+        SemanticModel semanticModel)
     {
         var typeInfo = semanticModel.GetTypeInfo(collectionExpr);
         var convertedType = typeInfo.ConvertedType;
 
-        if (convertedType == null)
+        return convertedType is INamedTypeSymbol
         {
-            return false;
-        }
-
-        if (convertedType is INamedTypeSymbol namedType && namedType.IsGenericType)
-        {
-            var typeName = namedType.OriginalDefinition.ToDisplayString();
-
-            return typeName == "System.Span<T>" || typeName == "System.ReadOnlySpan<T>";
-        }
-
-        return false;
+            Arity: 1,
+            ContainingNamespace:
+            {
+                Name: "System",
+                ContainingNamespace.IsGlobalNamespace: true,
+            },
+            Name: "Span" or "ReadOnlySpan",
+        };
     }
 }
