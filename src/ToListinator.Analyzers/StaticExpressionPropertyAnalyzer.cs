@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Collections.Immutable;
 using System.Linq;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -67,7 +68,7 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
             ImplicitObjectCreationExpressionSyntax => true,
             ArrayCreationExpressionSyntax => true,
             ImplicitArrayCreationExpressionSyntax => true,
-            CollectionExpressionSyntax => true,
+            CollectionExpressionSyntax collectionExpr => !SemanticAnalysisHelper.IsSpanCollectionExpression(collectionExpr, semanticModel),
 
             // Method invocations that may allocate
             InvocationExpressionSyntax invocation => IsAllocatingMethodCall(invocation, semanticModel),
