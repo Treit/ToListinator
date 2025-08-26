@@ -614,4 +614,79 @@ public class WhereCountCodeFixTests
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task ShouldFixWhereCountInsideMethodCall()
+    {
+        const string testCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class Response
+        {
+            public LogData LogData { get; set; }
+        }
+
+        public class LogData
+        {
+            public ErrorLogData[] ErrorLogData { get; set; }
+        }
+
+        public class ErrorLogData
+        {
+            public string ErrorMessage { get; set; }
+        }
+
+        public class TestClass
+        {
+            public void Test(int count) { }
+
+            public void TestMethod()
+            {
+                var response = new Response();
+                Test({|#0:response.LogData.ErrorLogData.Where(e => e.ErrorMessage.Contains("Using mock ranker results")).Count()|});
+            }
+        }
+        """;
+
+        const string fixedCode = """
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class Response
+        {
+            public LogData LogData { get; set; }
+        }
+
+        public class LogData
+        {
+            public ErrorLogData[] ErrorLogData { get; set; }
+        }
+
+        public class ErrorLogData
+        {
+            public string ErrorMessage { get; set; }
+        }
+
+        public class TestClass
+        {
+            public void Test(int count) { }
+
+            public void TestMethod()
+            {
+                var response = new Response();
+                Test(response.LogData.ErrorLogData.Count(e => e.ErrorMessage.Contains("Using mock ranker results")));
+            }
+        }
+        """;
+
+        var expected = TestHelper.CreateDiagnostic("TL006").WithLocation(0);
+        var test = TestHelper.CreateCodeFixTest<WhereCountAnalyzer, WhereCountCodeFixProvider>(
+            testCode,
+            fixedCode);
+        test.ExpectedDiagnostics.Add(expected);
+        await test.RunAsync(CancellationToken.None);
+    }
 }

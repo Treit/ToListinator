@@ -88,6 +88,28 @@ class Program
         Console.WriteLine($"TL010 test cases completed. Results count: {result1.Count()}, {result2.Count()}, {result3.Count()}");
         Console.WriteLine($"Has any: {hasAny}, Ordered items: {orderedItems.Count()}");
         Console.WriteLine($"Query result: {queryResult.Count()}, Enumerable result: {enumerableResult.Count()}");
+
+        var x = orderedItems.Where(x => x.Length > 0).Count();
+
+        // Create mock response object to test analyzer
+        var response = new MockResponse
+        {
+            LogData = new MockLogData
+            {
+                ErrorLogData = new List<MockErrorLogEntry>
+                {
+                    new MockErrorLogEntry { ErrorMessage = "Using mock ranker results for testing" },
+                    new MockErrorLogEntry { ErrorMessage = "Another error message" },
+                    new MockErrorLogEntry { ErrorMessage = "Using mock ranker results again" }
+                }
+            }
+        };
+
+        Test(response.LogData.ErrorLogData.Where(e => e.ErrorMessage.Contains("Using mock ranker results")).Count());
+    }
+
+    static void Test(int j)
+    {
     }
 
     static void ProcessItems(IEnumerable<int> items)
@@ -114,5 +136,21 @@ class Program
     static void Print<T>(T item)
     {
         Console.WriteLine(item);
+    }
+
+    // Mock types to support the test case
+    class MockResponse
+    {
+        public MockLogData LogData { get; set; } = new MockLogData();
+    }
+
+    class MockLogData
+    {
+        public List<MockErrorLogEntry> ErrorLogData { get; set; } = new List<MockErrorLogEntry>();
+    }
+
+    class MockErrorLogEntry
+    {
+        public string ErrorMessage { get; set; } = string.Empty;
     }
 }

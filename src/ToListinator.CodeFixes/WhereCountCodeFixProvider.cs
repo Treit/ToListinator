@@ -28,17 +28,22 @@ public class WhereCountCodeFixProvider : CodeFixProvider
 
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var countInvocation = await CodeFixHelper.FindTargetNodeBySpan<InvocationExpressionSyntax>(
-            context,
-            WhereCountAnalyzer.DiagnosticId);
-
-        if (countInvocation is null)
+        var diagnostic = CodeFixHelper.GetDiagnostic(context, WhereCountAnalyzer.DiagnosticId);
+        if (diagnostic == null)
         {
             return;
         }
 
-        var diagnostic = CodeFixHelper.GetDiagnostic(context, WhereCountAnalyzer.DiagnosticId);
-        if (diagnostic == null)
+        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken);
+        if (root == null)
+        {
+            return;
+        }
+
+        // Find the Count() invocation specifically
+        var diagnosticSpan = diagnostic.Location.SourceSpan;
+        var countInvocation = FindCountInvocationAtLocation(root, diagnosticSpan);
+        if (countInvocation == null)
         {
             return;
         }
@@ -51,6 +56,32 @@ public class WhereCountCodeFixProvider : CodeFixProvider
             countInvocation);
 
         context.RegisterCodeFix(action, diagnostic);
+    }
+
+    private static InvocationExpressionSyntax? FindCountInvocationAtLocation(SyntaxNode root, Microsoft.CodeAnalysis.Text.TextSpan diagnosticSpan)
+    {
+        // Find all invocation expressions that overlap with the diagnostic span
+        var candidates = root.DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Where(inv => inv.Span.IntersectsWith(diagnosticSpan));
+
+        // Look for the Count() method specifically
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "Count" &&
+                candidate.ArgumentList.Arguments.Count == 0)
+            {
+                // Verify this is a Where().Count() pattern
+                var whereChain = MethodChainHelper.CollectMethodChain(memberAccess.Expression, "Where");
+                if (whereChain.Count > 0)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static async Task<Document> ReplaceWithCountPredicate(
