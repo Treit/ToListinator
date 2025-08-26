@@ -64,6 +64,16 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
         // Get the expression from the expression body
         var expression = property.ExpressionBody!.Expression;
 
+        // Check if the original expression starts on a new line (multi-line format)
+        var originalArrowToken = property.ExpressionBody.ArrowToken;
+        var hasNewLineAfterArrow = originalArrowToken.TrailingTrivia.Any(t =>
+            t.IsKind(SyntaxKind.EndOfLineTrivia));
+
+        // Determine the appropriate trailing trivia for the equals token
+        var equalsTrailingTrivia = hasNewLineAfterArrow
+            ? originalArrowToken.TrailingTrivia
+            : TriviaList(Space);
+
         // Create the new property with getter-only accessor and initializer
         var newProperty = property
             .WithExpressionBody(null) // Remove expression body
@@ -80,7 +90,9 @@ public class StaticExpressionPropertyCodeFixProvider : CodeFixProvider
             )
             .WithInitializer(
                 EqualsValueClause(expression)
-                    .WithEqualsToken(Token(SyntaxKind.EqualsToken).WithLeadingTrivia(Space).WithTrailingTrivia(Space))
+                    .WithEqualsToken(Token(SyntaxKind.EqualsToken)
+                        .WithLeadingTrivia(Space)
+                        .WithTrailingTrivia(equalsTrailingTrivia))
             )
             .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
 
