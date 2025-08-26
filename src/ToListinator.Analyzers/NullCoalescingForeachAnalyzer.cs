@@ -13,7 +13,7 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
         id: "TL004",
         title: "Avoid foreach with null coalescing to empty collection",
-        messageFormat: "Avoid using null coalescing operator (??) with empty collection in foreach. Check for null instead to avoid unnecessary allocation.",
+        messageFormat: "Avoid using null coalescing operator (??) with empty collection in foreach. Check for null instead to avoid unnecessary allocations and for better performance.",
         category: "Performance",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
