@@ -12,8 +12,8 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
     public const string DiagnosticId = "TL003";
     private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
         id: DiagnosticId,
-        title: "Replace ToList().Count comparison with Any()",
-        messageFormat: "Avoid using ToList().Count for existence checks. Use Any() to avoid unnecessary allocation.",
+        title: "Replace ToList().Count or ToArray().Length comparison with Any()",
+        messageFormat: "Avoid using {0} for existence checks. Use Any() to avoid unnecessary allocation.",
         category: "Performance",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -37,39 +37,83 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
     {
         var binaryExpression = (BinaryExpressionSyntax)context.Node;
 
-        // Check if this is a ToList().Count comparison pattern that can be replaced with Any()
-        if (IsToListCountComparisonForAny(binaryExpression, out var toListCountExpression))
+        // Check if this is a ToList().Count or ToArray().Length comparison pattern that can be replaced with Any()
+        if (IsToListCountOrToArrayLengthComparisonForAny(binaryExpression, out var toListCountOrToArrayLengthExpression, out var methodType))
         {
-            var diagnostic = Diagnostic.Create(Rule, binaryExpression.GetLocation());
+            var diagnostic = Diagnostic.Create(Rule, binaryExpression.GetLocation(), methodType);
             context.ReportDiagnostic(diagnostic);
         }
     }
 
-    private static bool IsToListCountComparisonForAny(BinaryExpressionSyntax binaryExpression, out MemberAccessExpressionSyntax? toListCountExpression)
+    private static bool IsToListCountOrToArrayLengthComparisonForAny(BinaryExpressionSyntax binaryExpression, out MemberAccessExpressionSyntax? memberAccessExpression, out string methodType)
     {
-        toListCountExpression = null;
+        memberAccessExpression = null;
+        methodType = string.Empty;
 
         // Look for patterns like:
-        // collection.ToList().Count > 0
-        // collection.ToList().Count >= 1
-        // collection.ToList().Count != 0
-        // 0 < collection.ToList().Count
-        // 1 <= collection.ToList().Count
-        // 0 != collection.ToList().Count
+        // collection.ToList().Count > 0, collection.ToArray().Length > 0
+        // collection.ToList().Count >= 1, collection.ToArray().Length >= 1
+        // collection.ToList().Count != 0, collection.ToArray().Length != 0
+        // 0 < collection.ToList().Count, 0 < collection.ToArray().Length
+        // 1 <= collection.ToList().Count, 1 <= collection.ToArray().Length
+        // 0 != collection.ToList().Count, 0 != collection.ToArray().Length
 
-        var leftIsToListCount = IsToListCountExpression(binaryExpression.Left);
-        var rightIsToListCount = IsToListCountExpression(binaryExpression.Right);
+        var leftIsToListCountOrToArrayLength = IsToListCountOrToArrayLengthExpression(binaryExpression.Left, out var leftMethodType);
+        var rightIsToListCountOrToArrayLength = IsToListCountOrToArrayLengthExpression(binaryExpression.Right, out var rightMethodType);
 
-        if (leftIsToListCount && IsZeroOrOneConstant(binaryExpression.Right))
+        if (leftIsToListCountOrToArrayLength && IsZeroOrOneConstant(binaryExpression.Right))
         {
-            toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Left;
+            memberAccessExpression = (MemberAccessExpressionSyntax)binaryExpression.Left;
+            methodType = leftMethodType;
             return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
         }
 
-        if (rightIsToListCount && IsZeroOrOneConstant(binaryExpression.Left))
+        if (rightIsToListCountOrToArrayLength && IsZeroOrOneConstant(binaryExpression.Left))
         {
-            toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Right;
+            memberAccessExpression = (MemberAccessExpressionSyntax)binaryExpression.Right;
+            methodType = rightMethodType;
             return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
+        }
+
+        return false;
+    }
+
+    private static bool IsToListCountOrToArrayLengthExpression(SyntaxNode expression, out string methodType)
+    {
+        methodType = string.Empty;
+
+        // Check for ToList().Count pattern
+        if (expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "Count",
+                Expression: InvocationExpressionSyntax
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.ValueText: "ToList"
+                    }
+                }
+            })
+        {
+            methodType = "ToList().Count";
+            return true;
+        }
+
+        // Check for ToArray().Length pattern
+        if (expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "Length",
+                Expression: InvocationExpressionSyntax
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.ValueText: "ToArray"
+                    }
+                }
+            })
+        {
+            methodType = "ToArray().Length";
+            return true;
         }
 
         return false;

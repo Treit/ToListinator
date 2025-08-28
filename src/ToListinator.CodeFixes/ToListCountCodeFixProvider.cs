@@ -71,21 +71,60 @@ public class ToListCountCodeFixProvider : CodeFixProvider
 
     private static (ExpressionSyntax? originalCollection, bool isNegated) ExtractCollectionAndNegation(BinaryExpressionSyntax binaryExpression)
     {
-        // Check left side for ToList().Count
-        if (IsToListCountExpression(binaryExpression.Left, out var leftCollection))
+        // Check left side for ToList().Count or ToArray().Length
+        if (IsToListCountOrToArrayLengthExpression(binaryExpression.Left, out var leftCollection))
         {
             var isNegated = BinaryExpressionHelper.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
             return (leftCollection, isNegated);
         }
 
-        // Check right side for ToList().Count
-        if (IsToListCountExpression(binaryExpression.Right, out var rightCollection))
+        // Check right side for ToList().Count or ToArray().Length
+        if (IsToListCountOrToArrayLengthExpression(binaryExpression.Right, out var rightCollection))
         {
             var isNegated = BinaryExpressionHelper.IsNegatedCountPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
             return (rightCollection, isNegated);
         }
 
         return (null, false);
+    }
+
+    private static bool IsToListCountOrToArrayLengthExpression(SyntaxNode expression, out ExpressionSyntax? originalCollection)
+    {
+        originalCollection = null;
+
+        // Check for ToList().Count pattern
+        if (expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "Count",
+                Expression: InvocationExpressionSyntax toListCall
+            } &&
+            toListCall.Expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "ToList",
+                Expression: var toListCollection
+            })
+        {
+            originalCollection = toListCollection;
+            return true;
+        }
+
+        // Check for ToArray().Length pattern
+        if (expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "Length",
+                Expression: InvocationExpressionSyntax toArrayCall
+            } &&
+            toArrayCall.Expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "ToArray",
+                Expression: var toArrayCollection
+            })
+        {
+            originalCollection = toArrayCollection;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsToListCountExpression(SyntaxNode expression, out ExpressionSyntax? originalCollection)

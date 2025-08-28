@@ -24,6 +24,11 @@ class Program
         // This should trigger an analyzer warning.
         var any = numbers.ToList().Count > 0;
 
+        // NEW: These should trigger TL003 for ToArray().Length patterns
+        var arrayEmpty = numbers.ToArray().Length == 0;
+        var arrayNotEmpty = numbers.ToArray().Length > 0;
+        var arrayHasItems = numbers.Where(x => x > 2).ToArray().Length != 0;
+
         // This should trigger an analyzer warning
         numbers.ToList().ForEach(x => Console.WriteLine($"Number: {x}"));
 
