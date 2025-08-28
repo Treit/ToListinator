@@ -333,4 +333,191 @@ public class ToListCountAnalyzerTests
         );
         await test.RunAsync(CancellationToken.None);
     }
+
+    // ToArray().Length tests
+    [Fact]
+    public async Task ShouldReportWarningForToArrayLengthGreaterThanZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|#0:numbers.ToArray().Length > 0|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToArrayLengthGreaterThanOrEqualOne()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|#0:numbers.ToArray().Length >= 1|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToArrayLengthNotEqualsZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|#0:numbers.ToArray().Length != 0|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToArrayLengthEqualsZero()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|#0:numbers.ToArray().Length == 0|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForReversedToArrayLengthComparison()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|#0:0 < numbers.ToArray().Length|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldReportWarningForToArrayLengthWithWhereChain()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasValidItems = {|#0:numbers.Where(x => x > 1).ToArray().Length > 0|};
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(
+            testCode,
+            TestHelper.CreateDiagnostic("TL003").WithLocation(0)
+        );
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForRegularArrayLength()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var length = numbers.Length > 0; // This should not trigger - it's a regular array
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForRegularListCount()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var numbers = new List<int> { 1, 2, 3 };
+                var hasAny = numbers.Count > 0; // This should not trigger - it's a regular List.Count
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
 }

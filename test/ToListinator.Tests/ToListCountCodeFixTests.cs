@@ -457,4 +457,253 @@ public class ToListCountCodeFixTests
 
         await test.RunAsync(CancellationToken.None);
     }
+
+    // ToArray().Length code fix tests
+    [Fact]
+    public async Task ReplaceToArrayLengthGreaterThanZeroWithAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|TL003:numbers.ToArray().Length > 0|};
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = numbers.Any();
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ReplaceToArrayLengthEqualsZeroWithNotAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = {|TL003:numbers.ToArray().Length == 0|};
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var isEmpty = !numbers.Any();
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ReplaceToArrayLengthNotEqualsZeroWithAny()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|TL003:numbers.ToArray().Length != 0|};
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = numbers.Any();
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ReplaceToArrayLengthWithWhereChain()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasValidItems = {|TL003:numbers.Where(x => x > 1).ToArray().Length > 0|};
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasValidItems = numbers.Where(x => x > 1).Any();
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ReplaceReversedToArrayLengthComparison()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = {|TL003:0 < numbers.ToArray().Length|};
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                var hasAny = numbers.Any();
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task PreservesCommentsWithToArrayLength()
+    {
+        var testCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                // Check if we have any items
+                var hasAny = {|TL003:numbers.ToArray().Length > 0|}; // This is a comment
+            }
+        }
+        """;
+
+        var fixedCode =
+        """
+        using System.Collections.Generic;
+        using System.Linq;
+
+        class C
+        {
+            void M()
+            {
+                var numbers = new[] { 1, 2, 3 };
+                // Check if we have any items
+                var hasAny = numbers.Any(); // This is a comment
+            }
+        }
+        """;
+
+        var test = TestHelper.CreateCodeFixTest<ToListCountAnalyzer, ToListCountCodeFixProvider>(
+            testCode,
+            fixedCode
+        );
+
+        await test.RunAsync(CancellationToken.None);
+    }
 }
