@@ -129,3 +129,19 @@ var filtered = names.ToList().Where(x => x.Length > 3).ToList();
 // ✅ Good - use the materialized collection directly
 var filtered = names.Where(x => x.Length > 3).ToList();
 ```
+
+### TL011 - ToArray().Length Existence Check
+**Category:** Performance | **Severity:** Warning
+
+Detects `.ToArray().Length` comparisons against 0 or 1 that are checking for existence or emptiness. The `ToArray()` call materializes the entire collection unnecessarily when `Any()` can short-circuit after the first element.
+
+**Example:**
+```csharp
+var numbers = Enumerable.Range(0, 1000);
+
+// ❌ Bad - allocates an array just to check if any elements exist
+if (numbers.ToArray().Length > 0) { }
+
+// ✅ Good - short-circuits after the first element
+if (numbers.Any()) { }
+```
