@@ -333,4 +333,59 @@ public class ToListCountAnalyzerTests
         );
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForCustomToListInstanceMethod()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var custom = new CustomCollection();
+                var hasItems = custom.ToList().Count > 0;
+            }
+        }
+
+        public class CustomList
+        {
+            public int Count => 5;
+        }
+
+        public class CustomCollection
+        {
+            public CustomList ToList() => new CustomList();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForCustomToListReturningListSubclass()
+    {
+        const string testCode = """
+        using System.Collections.Generic;
+
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var custom = new MySource();
+                var hasItems = custom.ToList().Count > 0;
+            }
+        }
+
+        public class MySource
+        {
+            public List<int> ToList() => new List<int>();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToListCountAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
 }
