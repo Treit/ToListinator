@@ -50,8 +50,8 @@ When creating or modifying a `DiagnosticAnalyzer`:
 1. **Attribute**: Decorate with `[DiagnosticAnalyzer(LanguageNames.CSharp)]`.
 2. **Diagnostic IDs**: Follow the existing `TL###` pattern (e.g., `TL001`, `TL010`); increment the next available number.
 3. **Severity**: Always use `DiagnosticSeverity.Warning` (not Info) unless explicitly told otherwise.
-4. **Registration**: Prefer `RegisterCompilationStartAction` to resolve type symbols once, then register `RegisterOperationAction` for `OperationKind.Invocation` or the appropriate kind.
-5. **Semantic over Syntax**: Use `IInvocationOperation` and the `IOperation` APIs for semantic analysis rather than raw syntax trees when possible.
+4. **Registration**: Use `RegisterCompilationStartAction` to resolve type symbols once, then register `RegisterOperationAction` for `OperationKind.Invocation` or the appropriate kind.
+5. **IOperation over Syntax (mandatory)**: Always use `RegisterOperationAction` with `IOperation` APIs (`IInvocationOperation`, `IPropertyReferenceOperation`, etc.) for analyzer logic. Do **not** use `RegisterSyntaxNodeAction` for new analyzers. Some older analyzers in the codebase (e.g., `ToListCountAnalyzer`, `ToArrayLengthAnalyzer`) use syntax-based analysis — do **not** follow that pattern for new work. The `ToListForEachAnalyzer` is the reference implementation for the correct IOperation approach.
 6. **Pattern Matching**: Use modern C# pattern matching extensively (see the Pattern Matching skill below).
 7. **Update release notes**: Add the new rule to `AnalyzerReleases.Unshipped.md` using the table format:
 
@@ -151,10 +151,39 @@ When you discover a reusable pattern:
 
 Always prefer modern C# pattern matching over traditional `if`/`else` chains. This is the project's preferred coding style.
 
-### Property Patterns for Roslyn Nodes
+### IOperation Patterns (for analyzers)
+
+Analyzers must use `IOperation` pattern matching. These are the primary patterns:
 
 ```csharp
-// ✅ Preferred
+// ✅ Matching an invocation and its receiver in an analyzer
+if (invocation is IInvocationOperation
+    {
+        TargetMethod: { Name: "First" } firstMethod,
+        Instance: IInvocationOperation
+        {
+            TargetMethod: { Name: "ToList" } toListMethod
+        }
+    })
+{
+    // Verify symbols against resolved types
+}
+
+// ✅ Switch expression with IOperation
+return operation switch
+{
+    IInvocationOperation { TargetMethod.Name: "ToList" } => true,
+    IPropertyReferenceOperation { Property.Name: "Count" } => true,
+    _ => false
+};
+```
+
+### Syntax Patterns (for code fixes only)
+
+Syntax-based pattern matching is appropriate in **code fix providers** where you manipulate syntax trees. Do **not** use these patterns in analyzers.
+
+```csharp
+// ✅ In code fixes — finding nodes to transform
 return node is InvocationExpressionSyntax
 {
     Expression: MemberAccessExpressionSyntax
@@ -170,18 +199,6 @@ return node is InvocationExpressionSyntax
 ```csharp
 // ✅ Preferred
 return methodName is "ToList" or "ToArray" or "ToHashSet";
-```
-
-### Switch Expressions
-
-```csharp
-// ✅ Preferred
-return operation switch
-{
-    IInvocationOperation { TargetMethod.Name: "ToList" } => true,
-    IMemberAccessOperation { Member.Name: "Count" } => true,
-    _ => false
-};
 ```
 
 ### Symbol Matching
