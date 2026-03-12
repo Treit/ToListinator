@@ -25,69 +25,89 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.GreaterThanExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.GreaterThanOrEqualExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.NotEqualsExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LessThanExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LessThanOrEqualExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.EqualsExpression);
+
+        context.RegisterCompilationStartAction(startContext =>
+        {
+            var enumerableType = startContext.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            if (enumerableType is null)
+            {
+                return;
+            }
+
+            startContext.RegisterSyntaxNodeAction(
+                analysisContext => AnalyzeBinaryExpression(analysisContext, enumerableType),
+                SyntaxKind.GreaterThanExpression,
+                SyntaxKind.GreaterThanOrEqualExpression,
+                SyntaxKind.NotEqualsExpression,
+                SyntaxKind.LessThanExpression,
+                SyntaxKind.LessThanOrEqualExpression,
+                SyntaxKind.EqualsExpression);
+        });
     }
 
-    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context, ITypeSymbol enumerableType)
     {
         var binaryExpression = (BinaryExpressionSyntax)context.Node;
 
-        // Check if this is a ToList().Count comparison pattern that can be replaced with Any()
-        if (IsToListCountComparisonForAny(binaryExpression, out var toListCountExpression))
+        if (IsToListCountComparisonForAny(binaryExpression, context, enumerableType))
         {
             var diagnostic = Diagnostic.Create(Rule, binaryExpression.GetLocation());
             context.ReportDiagnostic(diagnostic);
         }
     }
 
-    private static bool IsToListCountComparisonForAny(BinaryExpressionSyntax binaryExpression, out MemberAccessExpressionSyntax? toListCountExpression)
+    private static bool IsToListCountComparisonForAny(
+        BinaryExpressionSyntax binaryExpression,
+        SyntaxNodeAnalysisContext context,
+        ITypeSymbol enumerableType)
     {
-        toListCountExpression = null;
-
-        // Look for patterns like:
-        // collection.ToList().Count > 0
-        // collection.ToList().Count >= 1
-        // collection.ToList().Count != 0
-        // 0 < collection.ToList().Count
-        // 1 <= collection.ToList().Count
-        // 0 != collection.ToList().Count
-
-        var leftIsToListCount = IsToListCountExpression(binaryExpression.Left);
-        var rightIsToListCount = IsToListCountExpression(binaryExpression.Right);
-
-        if (leftIsToListCount && IsZeroOrOneConstant(binaryExpression.Right))
+        if (TryGetToListInvocation(binaryExpression.Left, out var leftInvocation) &&
+            IsZeroOrOneConstant(binaryExpression.Right) &&
+            IsLinqToListCall(leftInvocation!, context, enumerableType))
         {
-            toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Left;
             return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
         }
 
-        if (rightIsToListCount && IsZeroOrOneConstant(binaryExpression.Left))
+        if (TryGetToListInvocation(binaryExpression.Right, out var rightInvocation) &&
+            IsZeroOrOneConstant(binaryExpression.Left) &&
+            IsLinqToListCall(rightInvocation!, context, enumerableType))
         {
-            toListCountExpression = (MemberAccessExpressionSyntax)binaryExpression.Right;
             return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
         }
 
         return false;
     }
 
-    private static bool IsToListCountExpression(SyntaxNode expression)
+    private static bool TryGetToListInvocation(SyntaxNode expression, out InvocationExpressionSyntax? toListInvocation)
     {
-        return expression is MemberAccessExpressionSyntax
-        {
-            Name.Identifier.ValueText: "Count",
-            Expression: InvocationExpressionSyntax
+        toListInvocation = null;
+
+        if (expression is MemberAccessExpressionSyntax
             {
-                Expression: MemberAccessExpressionSyntax
-                {
-                    Name.Identifier.ValueText: "ToList"
-                }
-            }
-        };
+                Name.Identifier.ValueText: "Count",
+                Expression: InvocationExpressionSyntax invocation
+            } &&
+            invocation.Expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "ToList",
+                Expression: not null
+            })
+        {
+            toListInvocation = invocation;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsLinqToListCall(
+        InvocationExpressionSyntax invocation,
+        SyntaxNodeAnalysisContext context,
+        ITypeSymbol enumerableType)
+    {
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
+        return symbolInfo.Symbol is IMethodSymbol methodSymbol &&
+               SymbolEqualityComparer.Default.Equals(methodSymbol.ContainingType, enumerableType);
     }
 
     private static bool IsZeroOrOneConstant(SyntaxNode expression)
