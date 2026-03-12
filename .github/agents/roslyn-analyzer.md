@@ -48,7 +48,7 @@ Key configuration rules:
 When creating or modifying a `DiagnosticAnalyzer`:
 
 1. **Attribute**: Decorate with `[DiagnosticAnalyzer(LanguageNames.CSharp)]`.
-2. **Diagnostic IDs**: Follow the existing `TL0XX` pattern; increment the next available number.
+2. **Diagnostic IDs**: Follow the existing `TL###` pattern (e.g., `TL001`, `TL010`); increment the next available number.
 3. **Severity**: Always use `DiagnosticSeverity.Warning` (not Info) unless explicitly told otherwise.
 4. **Registration**: Prefer `RegisterCompilationStartAction` to resolve type symbols once, then register `RegisterOperationAction` for `OperationKind.Invocation` or the appropriate kind.
 5. **Semantic over Syntax**: Use `IInvocationOperation` and the `IOperation` APIs for semantic analysis rather than raw syntax trees when possible.
@@ -58,7 +58,7 @@ When creating or modifying a `DiagnosticAnalyzer`:
 ```markdown
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-TL0XX   | Performance | Warning | Brief description
+TL###   | Performance | Warning | Brief description
 ```
 
 ---
@@ -118,7 +118,7 @@ private static async Task<Document> ApplyCodeFix(
 - **Clean moved nodes** — call `WithoutTrivia()` on expressions being relocated.
 - **Apply strategically** — attach trivia to the outermost new construct so comments stay meaningful.
 - **Always use `Formatter.Annotation`** — never `NormalizeWhitespace()`, which forces CRLF and ignores `.editorconfig`.
-- **Never construct whitespace manually** — no `SyntaxFactory.Whitespace("    ")`, no `TriviaList(Space)` tokens, no `CarriageReturnLineFeed`.
+- **Avoid manual whitespace in code fixes** — in analyzers and code fixes, do not create whitespace trivia directly (e.g., `SyntaxFactory.Whitespace("    ")`, `TriviaList(Space)`, `CarriageReturnLineFeed`); instead, preserve existing trivia and let the Roslyn formatter handle layout. Dedicated formatting/alignment utilities (such as `ToListinator.Utils.FluentChainAligner`) may construct whitespace as part of their responsibility.
 
 ---
 
@@ -210,7 +210,7 @@ return typeSymbol is INamedTypeSymbol
 
 ### Test Framework
 
-Tests use **xUnit** with the Roslyn `Microsoft.CodeAnalysis.CSharp.CodeFix.Testing.XUnit` package.
+Tests use **xUnit** together with the Roslyn `Microsoft.CodeAnalysis.CSharp.CodeFix.Testing` package (xUnit is referenced separately in the test project).
 
 ### Structure
 
@@ -220,11 +220,13 @@ public async Task DescriptiveTestName()
 {
     var testCode = """
         using System;
+        using System.Collections.Generic;
 
         class C
         {
             void M()
             {
+                List<string>? list = null;
                 foreach (var item in {|TL004:list ?? new List<string>()|})
                 {
                 }
@@ -234,11 +236,13 @@ public async Task DescriptiveTestName()
 
     var fixedCode = """
         using System;
+        using System.Collections.Generic;
 
         class C
         {
             void M()
             {
+                List<string>? list = null;
                 if (list != null)
                 {
                     foreach (var item in list)
@@ -249,7 +253,7 @@ public async Task DescriptiveTestName()
         }
         """;
 
-    var test = CodeFixTestHelper.CreateCodeFixTest<YourAnalyzer, YourCodeFixProvider>(
+    var test = TestHelper.CreateCodeFixTest<YourAnalyzer, YourCodeFixProvider>(
         testCode, fixedCode);
 
     await test.RunAsync(CancellationToken.None);
@@ -259,8 +263,8 @@ public async Task DescriptiveTestName()
 ### Rules
 
 - Use **raw string literals** (`"""`) for test code.
-- Mark expected diagnostic locations with `{|TL0XX:code|}` — the ID must match the analyzer.
-- Use `CodeFixTestHelper.CreateCodeFixTest<TAnalyzer, TCodeFixProvider>(testCode, fixedCode)` for code fix tests.
+- Mark expected diagnostic locations with `{|TL###:code|}` — the ID must match the analyzer.
+- Use `TestHelper.CreateCodeFixTest<TAnalyzer, TCodeFixProvider>(testCode, fixedCode)` for code fix tests.
 - Test **positive cases** (should trigger), **negative cases** (should not trigger), and **edge cases** (method groups, anonymous methods, complex chains).
 - Verify comments and formatting are preserved after code fixes.
 - Test fix-all scenarios.
@@ -295,7 +299,7 @@ Understanding Roslyn's "outside-in" model is essential for correct analysis:
 
 When asked to create a new analyzer, follow this checklist:
 
-1. **Choose the next diagnostic ID** by checking the highest `TL0XX` in `AnalyzerReleases.Shipped.md` and `Unshipped.md`.
+1. **Choose the next diagnostic ID** by checking the highest `TL###` in `AnalyzerReleases.Shipped.md` and `Unshipped.md`.
 2. **Create the analyzer** in `src/ToListinator.Analyzers/` following the Writing Analyzers skill.
 3. **Create the code fix** in `src/ToListinator.CodeFixes/` following the Code Fix and Trivia skills.
 4. **Add tests** in `test/ToListinator.Tests/` — both analyzer tests and code fix tests.
