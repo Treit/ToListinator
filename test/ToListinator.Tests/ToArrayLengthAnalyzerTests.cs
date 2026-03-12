@@ -207,4 +207,57 @@ public class ToArrayLengthAnalyzerTests
 
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForCustomToArrayInstanceMethod()
+    {
+        const string testCode = """
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var custom = new CustomCollection();
+                var hasItems = custom.ToArray().Length > 0;
+            }
+        }
+
+        public class CustomCollection
+        {
+            public int[] ToArray() => new int[0];
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToArrayLengthAnalyzer>(testCode);
+
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShouldNotReportWarningForCustomToArrayReturningTypeWithLength()
+    {
+        const string testCode = """
+        public class TestClass
+        {
+            public void TestMethod()
+            {
+                var custom = new MySource();
+                var hasItems = custom.ToArray().Length > 0;
+            }
+        }
+
+        public class MyResult
+        {
+            public int Length => 5;
+        }
+
+        public class MySource
+        {
+            public MyResult ToArray() => new MyResult();
+        }
+        """;
+
+        var test = TestHelper.CreateAnalyzerTest<ToArrayLengthAnalyzer>(testCode);
+
+        await test.RunAsync(CancellationToken.None);
+    }
 }

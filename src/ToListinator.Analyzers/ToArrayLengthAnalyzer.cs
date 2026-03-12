@@ -26,36 +26,61 @@ public class ToArrayLengthAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.GreaterThanExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.GreaterThanOrEqualExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.NotEqualsExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LessThanExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LessThanOrEqualExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.EqualsExpression);
+        context.RegisterCompilationStartAction(startContext =>
+        {
+            var enumerableType = startContext.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            if (enumerableType is null)
+            {
+                return;
+            }
+
+            startContext.RegisterSyntaxNodeAction(
+                analysisContext => AnalyzeBinaryExpression(analysisContext, enumerableType),
+                SyntaxKind.GreaterThanExpression,
+                SyntaxKind.GreaterThanOrEqualExpression,
+                SyntaxKind.NotEqualsExpression,
+                SyntaxKind.LessThanExpression,
+                SyntaxKind.LessThanOrEqualExpression,
+                SyntaxKind.EqualsExpression);
+        });
     }
 
-    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context, ITypeSymbol enumerableType)
     {
         if (context.Node is not BinaryExpressionSyntax binaryExpression)
         {
             return;
         }
 
-        if (IsToArrayLengthComparison(binaryExpression))
+        if (IsToArrayLengthComparison(binaryExpression, context, enumerableType))
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, binaryExpression.GetLocation()));
         }
     }
 
-    private static bool IsToArrayLengthComparison(BinaryExpressionSyntax binaryExpression)
+    private static bool IsToArrayLengthComparison(
+        BinaryExpressionSyntax binaryExpression,
+        SyntaxNodeAnalysisContext context,
+        ITypeSymbol enumerableType)
     {
-        return IsLengthComparisonAgainstZeroOrOne(binaryExpression.Left, binaryExpression.Right, binaryExpression.OperatorToken.Kind(), isLeftOperand: true) ||
-               IsLengthComparisonAgainstZeroOrOne(binaryExpression.Right, binaryExpression.Left, binaryExpression.OperatorToken.Kind(), isLeftOperand: false);
+        return IsLengthComparisonAgainstZeroOrOne(binaryExpression.Left, binaryExpression.Right, binaryExpression.OperatorToken.Kind(), isLeftOperand: true, context, enumerableType) ||
+               IsLengthComparisonAgainstZeroOrOne(binaryExpression.Right, binaryExpression.Left, binaryExpression.OperatorToken.Kind(), isLeftOperand: false, context, enumerableType);
     }
 
-    private static bool IsLengthComparisonAgainstZeroOrOne(SyntaxNode potentialLengthExpression, SyntaxNode otherOperand, SyntaxKind operatorKind, bool isLeftOperand)
+    private static bool IsLengthComparisonAgainstZeroOrOne(
+        SyntaxNode potentialLengthExpression,
+        SyntaxNode otherOperand,
+        SyntaxKind operatorKind,
+        bool isLeftOperand,
+        SyntaxNodeAnalysisContext context,
+        ITypeSymbol enumerableType)
     {
-        if (!IsToArrayLengthExpression(potentialLengthExpression))
+        if (!TryGetToArrayInvocation(potentialLengthExpression, out var toArrayInvocation))
+        {
+            return false;
+        }
+
+        if (!IsLinqToArrayCall(toArrayInvocation!, context, enumerableType))
         {
             return false;
         }
@@ -64,20 +89,36 @@ public class ToArrayLengthAnalyzer : DiagnosticAnalyzer
                IsValidLengthComparisonPattern(operatorKind, literal.Token.ValueText, isLeftOperand);
     }
 
-    private static bool IsToArrayLengthExpression(SyntaxNode expression)
+    private static bool TryGetToArrayInvocation(SyntaxNode expression, out InvocationExpressionSyntax? toArrayInvocation)
     {
-        return expression is MemberAccessExpressionSyntax
-        {
-            Name.Identifier.ValueText: "Length",
-            Expression: InvocationExpressionSyntax
+        toArrayInvocation = null;
+
+        if (expression is MemberAccessExpressionSyntax
             {
-                Expression: MemberAccessExpressionSyntax
-                {
-                    Name.Identifier.ValueText: "ToArray",
-                    Expression: not null
-                }
-            }
-        };
+                Name.Identifier.ValueText: "Length",
+                Expression: InvocationExpressionSyntax invocation
+            } &&
+            invocation.Expression is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.ValueText: "ToArray",
+                Expression: not null
+            })
+        {
+            toArrayInvocation = invocation;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsLinqToArrayCall(
+        InvocationExpressionSyntax invocation,
+        SyntaxNodeAnalysisContext context,
+        ITypeSymbol enumerableType)
+    {
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
+        return symbolInfo.Symbol is IMethodSymbol methodSymbol &&
+               SymbolEqualityComparer.Default.Equals(methodSymbol.ContainingType, enumerableType);
     }
 
     private static bool IsValidLengthComparisonPattern(SyntaxKind operatorKind, string constantValue, bool isLeftOperand)
