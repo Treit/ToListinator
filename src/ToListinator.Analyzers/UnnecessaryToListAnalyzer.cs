@@ -1,9 +1,7 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
-using System.Linq;
 using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
@@ -36,65 +34,63 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            startContext.RegisterSyntaxNodeAction(analysisContext =>
+            startContext.RegisterOperationAction(analysisContext =>
             {
                 AnalyzeInvocation(analysisContext, enumerableType);
-            }, SyntaxKind.InvocationExpression);
+            }, OperationKind.Invocation);
         });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, ITypeSymbol enumerableType)
+    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
     {
-        var invocationExpression = (InvocationExpressionSyntax)context.Node;
+        var invocation = (IInvocationOperation)context.Operation;
 
-        // Check if this is a ToList() call
-        if (!IsToListCall(invocationExpression))
+        // Must be Enumerable.ToList() with no arguments (only the extension 'this' param)
+        if (invocation.TargetMethod.Name is not "ToList"
+            || invocation.TargetMethod.Parameters.Length != 1
+            || !SymbolEqualityComparer.Default.Equals(invocation.TargetMethod.ContainingType, enumerableType))
         {
             return;
         }
 
-        // Get the source expression (what ToList() is being called on)
-        var memberAccess = (MemberAccessExpressionSyntax)invocationExpression.Expression;
-        var sourceExpression = memberAccess.Expression;
-
-        // Check if the source is already a materialized collection
-        var sourceTypeInfo = context.SemanticModel.GetTypeInfo(sourceExpression);
-        if (sourceTypeInfo.Type is null || !IsMaterializedCollection(sourceTypeInfo.Type))
+        // Get the source type (unwrap implicit conversions to get the actual type)
+        var sourceType = GetSourceType(invocation);
+        if (sourceType is null || !IsMaterializedCollection(sourceType))
         {
             return;
         }
 
-        // Check if this ToList() call is followed by LINQ operations
-        if (!IsFollowedByLinqOperations(invocationExpression, context.SemanticModel))
+        // Check if this ToList() result is followed by LINQ operations or passed to IEnumerable param
+        if (!IsFollowedByLinqOperations(invocation, context.Compilation))
         {
             return;
         }
 
-        // Check if this might be a defensive copy that's actually needed
-        if (MightNeedDefensiveCopy(invocationExpression, context.SemanticModel))
-        {
-            return;
-        }
-
-        // Report the diagnostic
-        var sourceTypeName = GetFriendlyTypeName(sourceTypeInfo.Type);
-        var diagnostic = Diagnostic.Create(Rule, invocationExpression.GetLocation(), sourceTypeName);
-        context.ReportDiagnostic(diagnostic);
+        var sourceTypeName = GetFriendlyTypeName(sourceType);
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.Syntax.GetLocation(), sourceTypeName));
     }
 
-    private static bool IsToListCall(InvocationExpressionSyntax invocation)
+    private static ITypeSymbol? GetSourceType(IInvocationOperation invocation)
     {
-        return invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-               memberAccess.Name.Identifier.ValueText == "ToList" &&
-               invocation.ArgumentList.Arguments.Count == 0; // Parameterless ToList()
+        if (invocation.Arguments.Length == 0)
+        {
+            return null;
+        }
+
+        IOperation sourceOp = invocation.Arguments[0].Value;
+
+        // Roslyn may wrap the receiver in one or more implicit conversions
+        // (e.g. covariance, interface adaptation). Peel them all off.
+        while (sourceOp is IConversionOperation { IsImplicit: true } conversion)
+        {
+            sourceOp = conversion.Operand;
+        }
+
+        return sourceOp.Type;
     }
 
     private static bool IsMaterializedCollection(ITypeSymbol type)
     {
-        // Check for concrete collection types that are already materialized
-        var typeName = type.ToDisplayString();
-
-        // Handle generic types by getting the original definition
         if (type is INamedTypeSymbol namedType && namedType.IsGenericType)
         {
             var originalDefinition = namedType.OriginalDefinition.ToDisplayString();
@@ -111,14 +107,12 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
             };
         }
 
-        // Handle arrays
         if (type.TypeKind == TypeKind.Array)
         {
             return true;
         }
 
-        // Handle non-generic collections
-        return typeName switch
+        return type.ToDisplayString() switch
         {
             "System.Collections.ArrayList" => true,
             "System.Collections.Queue" => true,
@@ -127,158 +121,76 @@ public class UnnecessaryToListAnalyzer : DiagnosticAnalyzer
         };
     }
 
-    private static bool IsFollowedByLinqOperations(InvocationExpressionSyntax toListCall, SemanticModel semanticModel)
+    private static bool IsFollowedByLinqOperations(IInvocationOperation toListInvocation, Compilation compilation)
     {
-        // Check if the ToList() call is immediately used in a LINQ operation
-        var parent = toListCall.Parent;
+        IOperation current = toListInvocation;
 
-        // Look for member access that uses this ToList() result
-        if (parent is MemberAccessExpressionSyntax memberAccess && memberAccess.Expression == toListCall)
+        // Roslyn may wrap the result in one or more implicit conversions
+        // (e.g. covariance, interface adaptation). Walk past them all.
+        while (current.Parent is IConversionOperation { IsImplicit: true })
         {
-            // Check if the member access is part of another invocation
-            if (memberAccess.Parent is InvocationExpressionSyntax parentInvocation)
+            current = current.Parent;
+        }
+
+        // Extension method chain: ToList is the 'this' argument of the next method
+        if (current.Parent is IArgumentOperation argument
+            && argument.Parent is IInvocationOperation parentInvocation)
+        {
+            if (parentInvocation.TargetMethod.IsExtensionMethod
+                && argument.Parameter is { Ordinal: 0 })
             {
-                var methodName = memberAccess.Name.Identifier.ValueText;
-                return MethodChainHelper.IsLinqMethod(methodName, includeConversionMethods: false) ||
-                       methodName == "ForEach"; // List<T>.ForEach, though this is discouraged
+                var methodName = parentInvocation.TargetMethod.Name;
+                return MethodChainHelper.IsLinqMethod(methodName, includeConversionMethods: false)
+                       || methodName == "ForEach";
+            }
+
+            // Regular argument: check if parameter accepts IEnumerable<T>
+            if (argument.Parameter is not null)
+            {
+                return CanParameterAcceptIEnumerable(argument.Parameter.Type, toListInvocation, compilation);
             }
         }
 
-        // Check if used as argument to a method that accepts IEnumerable<T>
-        if (parent is ArgumentSyntax argument)
+        // Instance method chain: ToList result is the receiver of the next call
+        if (current.Parent is IInvocationOperation instanceParent
+            && instanceParent.Instance == current)
         {
-            return IsPassedToMethodAcceptingIEnumerable(argument, toListCall, semanticModel);
-        }
-
-        // Check if assigned to a variable that's later used with LINQ
-        if (parent is EqualsValueClauseSyntax equalsValue)
-        {
-            // For now, we'll be conservative and not flag assignments
-            // This could be enhanced in future versions
-            return false;
+            var methodName = instanceParent.TargetMethod.Name;
+            return MethodChainHelper.IsLinqMethod(methodName, includeConversionMethods: false)
+                   || methodName == "ForEach";
         }
 
         return false;
     }
 
-    private static bool IsPassedToMethodAcceptingIEnumerable(
-        ArgumentSyntax argument,
-        InvocationExpressionSyntax toListCall,
-        SemanticModel semanticModel)
+    private static bool CanParameterAcceptIEnumerable(
+        ITypeSymbol parameterType,
+        IInvocationOperation toListCall,
+        Compilation compilation)
     {
-        // Walk up to find the invocation that contains this argument
-        var argumentParent = argument.Parent;
-        while (argumentParent != null && argumentParent is not InvocationExpressionSyntax)
-        {
-            argumentParent = argumentParent.Parent;
-        }
-
-        if (argumentParent is not InvocationExpressionSyntax parentInvocation)
-        {
-            return false;
-        }
-
-        // Get the symbol information for the method being called
-        var symbolInfo = semanticModel.GetSymbolInfo(parentInvocation);
-        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
-        {
-            return false;
-        }
-
-        // Find which parameter position this argument corresponds to
-        if (argument.Parent is not ArgumentListSyntax argumentList)
-        {
-            return false;
-        }
-
-        var argumentIndex = argumentList.Arguments.IndexOf(argument);
-        if (argumentIndex < 0 || argumentIndex >= methodSymbol.Parameters.Length)
-        {
-            return false;
-        }
-
-        var parameter = methodSymbol.Parameters[argumentIndex];
-        var parameterType = parameter.Type;
-
-        // Get the element type from the ToList call
-        var toListSymbolInfo = semanticModel.GetSymbolInfo(toListCall);
-        if (toListSymbolInfo.Symbol is not IMethodSymbol toListMethod)
-        {
-            return false;
-        }
-
-        if (toListMethod.ReturnType is not INamedTypeSymbol returnType ||
-            returnType.TypeArguments.Length != 1)
+        if (toListCall.TargetMethod.ReturnType is not INamedTypeSymbol returnType
+            || returnType.TypeArguments.Length != 1)
         {
             return false;
         }
 
         var elementType = returnType.TypeArguments[0];
 
-        // Check if the parameter can accept IEnumerable<elementType>
-        return CanTypeAcceptIEnumerable(parameterType, elementType, semanticModel.Compilation);
-    }
-
-    private static bool CanTypeAcceptIEnumerable(ITypeSymbol parameterType, ITypeSymbol elementType, Compilation compilation)
-    {
-        // Get IEnumerable<T> type symbol
         var iEnumerableType = compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
-        if (iEnumerableType == null)
+        if (iEnumerableType is null)
         {
             return false;
         }
 
-        // Construct IEnumerable<elementType>
         var constructedIEnumerable = iEnumerableType.Construct(elementType);
-
-        // Check if parameter type is assignable from IEnumerable<elementType>
-        var conversion = compilation.HasImplicitConversion(constructedIEnumerable, parameterType);
-
-        return conversion;
-    }
-
-    private static bool MightNeedDefensiveCopy(InvocationExpressionSyntax toListCall, SemanticModel semanticModel)
-    {
-        // For now, we'll be conservative and check for common patterns where defensive copy might be needed
-
-        // Check if the result is passed to methods that might modify the collection
-        var parent = toListCall.Parent;
-
-        // If passed as argument, check if the method might store/modify it
-        if (parent is ArgumentSyntax argument)
-        {
-            // For now, be conservative - this could be enhanced with more sophisticated analysis
-            // to check if the method parameter is marked with attributes indicating mutation
-            return false; // We'll assume most cases don't need defensive copying for this analyzer
-        }
-
-        // Check if assigned to a field or property (might be stored for later use)
-        var currentNode = toListCall.Parent;
-        while (currentNode != null)
-        {
-            if (currentNode is AssignmentExpressionSyntax assignment)
-            {
-                // Check if assigning to a field or property
-                if (assignment.Left is MemberAccessExpressionSyntax ||
-                    assignment.Left is IdentifierNameSyntax identifier)
-                {
-                    // This might be storing the collection, so defensive copy could be needed
-                    // For now, we'll be permissive and allow the optimization
-                    return false;
-                }
-            }
-            currentNode = currentNode.Parent;
-        }
-
-        return false;
+        return compilation.HasImplicitConversion(constructedIEnumerable, parameterType);
     }
 
     private static string GetFriendlyTypeName(ITypeSymbol type)
     {
-        // Get a user-friendly display name for the type
         if (type.TypeKind == TypeKind.Array)
         {
-            return $"{type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}";
+            return type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         }
 
         return type.Name switch
