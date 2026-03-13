@@ -72,7 +72,8 @@ When creating or modifying a `CodeFixProvider`:
 3. **Fix-all support**: Return `WellKnownFixAllProviders.BatchFixer` from `GetFixAllProvider()`.
 4. **Finding nodes**: Use `root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()` — this is more reliable than `FindNode`.
 5. **Immutable transforms**: Build new syntax using `SyntaxFactory`; never mutate existing nodes.
-6. **Trivia handling**: Follow the Trivia Handling skill below — this is critical.
+6. **Exception semantics**: Never suggest a fix that changes the exception type thrown on error. For example, array indexers throw `IndexOutOfRangeException` while `List<T>` indexers and `ElementAt` throw `ArgumentOutOfRangeException` — rewriting `ToArray()[i]` to `ElementAt(i)` would change observable behavior. If a fix would alter exception semantics, do not diagnose that pattern.
+7. **Trivia handling**: Follow the Trivia Handling skill below — this is critical.
 7. **Utility methods**: Always use `ToListinator.Utils` helpers (e.g., `FluentChainAligner`) for common transformations — see the Utility Usage skill.
 
 ---
@@ -150,6 +151,26 @@ When you discover a reusable pattern:
 ## Skill: Pattern Matching (Preferred Style)
 
 Always prefer modern C# pattern matching over traditional `if`/`else` chains. This is the project's preferred coding style.
+
+### IOperation Extension Method Pitfall
+
+In the IOperation model, LINQ extension methods called via **dot syntax** (`items.ToList().First()`) and **static form** (`Enumerable.First(items.ToList())`) are **indistinguishable**: both have `Instance = null` with the receiver in `Arguments[0]`. The `ReducedFrom` property is also null in both cases.
+
+When an analyzer needs to distinguish these forms, drop to syntax:
+
+```csharp
+// Dot syntax: Expression is MemberAccess whose Expression is an Invocation
+// Static form: Expression is IdentifierName or QualifiedName (the type)
+if (invocation.Syntax is InvocationExpressionSyntax
+    {
+        Expression: MemberAccessExpressionSyntax
+        {
+            Expression: InvocationExpressionSyntax  // confirms dot syntax
+        }
+    })
+```
+
+This is the **only** reliable way to differentiate them. Always add this check when the code fix cannot handle the static form.
 
 ### IOperation Patterns (for analyzers)
 
