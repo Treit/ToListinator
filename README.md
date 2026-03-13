@@ -114,6 +114,26 @@ var result = items.Where(x => x.IsValid).ToList().Select(x => x.Name).ToArray();
 var result = items.Where(x => x.IsValid).Select(x => x.Name).ToArray();
 ```
 
+### TL008 - Single Element Access After ToList/ToArray
+**Category:** Performance | **Severity:** Warning
+
+Detects `ToList()` or `ToArray()` calls followed by single element access methods (`First`, `Last`, `Single`, `ElementAt`, etc.) or `ToList()` followed by indexer access, which materializes the entire collection unnecessarily.
+
+**Example:**
+```csharp
+var numbers = Enumerable.Range(0, 1000);
+
+// ❌ Bad - materializes entire collection just to get first element
+var first = numbers.ToList().First();
+
+// ❌ Bad - materializes list just to index
+var element = numbers.ToList()[42];
+
+// ✅ Good - accesses element directly
+var first = numbers.First();
+var element = numbers.ElementAt(42);
+```
+
 ### TL010 - Unnecessary ToList on Materialized Collections
 **Category:** Performance | **Severity:** Warning
 
