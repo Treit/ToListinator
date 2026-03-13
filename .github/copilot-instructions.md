@@ -39,6 +39,16 @@ Analyzers and code fixes target **netstandard2.0** with `<EnforceExtendedAnalyze
 - Diagnostic IDs follow the `TL###` pattern (three zero-padded digits). Check `AnalyzerReleases.Shipped.md` and `AnalyzerReleases.Unshipped.md` for the next available ID.
 - Use modern C# pattern matching extensively — property patterns, `or`/`and` combinators, switch expressions. Use `Name` over `MetadataName`, `Arity` over manual generic param counting, `not null` over `!= null`.
 
+### IOperation Pitfalls with Extension Methods
+
+- In IOperation, LINQ extension methods called with **dot syntax** (`items.ToList().First()`) and **static form** (`Enumerable.First(items.ToList())`) are **indistinguishable**: both have `Instance = null` with the receiver in `Arguments[0]`. `ReducedFrom` is also null in both cases.
+- When an analyzer needs to distinguish dot syntax from static form, **drop to syntax**: check whether `invocation.Syntax` is an `InvocationExpressionSyntax` whose `Expression` is a `MemberAccessExpressionSyntax` with an `InvocationExpressionSyntax` receiver (dot syntax) vs. an `IdentifierNameSyntax` or `QualifiedNameSyntax` (static form).
+- Only diagnose patterns the code fix can actually rewrite. If the static form can't be fixed, exclude it in the analyzer rather than producing a no-op fix.
+
+### Exception Semantics
+
+- Never suggest a fix that changes the exception type thrown on error. For example, array indexers throw `IndexOutOfRangeException` while `List<T>` indexers and `ElementAt` throw `ArgumentOutOfRangeException` — rewriting `ToArray()[i]` to `ElementAt(i)` would change observable behavior.
+
 ### Code Fix Implementation
 
 - Find nodes via `root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()` (not `FindNode`).
