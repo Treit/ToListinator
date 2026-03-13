@@ -72,6 +72,20 @@ Analyzers and code fixes target **netstandard2.0** with `<EnforceExtendedAnalyze
 5. Update `README.md` with the new rule's documentation
 6. Run `dotnet build && dotnet test`
 
+## GitHub CLI (gh) Usage
+
+When creating or editing PRs/issues with `gh`, **write the body to a temp file** and pass it with `--body-file` instead of using inline `--body` strings. PowerShell string interpolation and shell escaping corrupt backticks into backslashes.
+
+```powershell
+$bodyFile = [System.IO.Path]::GetTempFileName()
+@"
+## Summary
+Adds the `Foo` analyzer...
+"@ | Set-Content -Path $bodyFile -Encoding utf8
+gh pr create --title "Add Foo analyzer" --body-file $bodyFile
+Remove-Item $bodyFile
+```
+
 ## Skill Emoji Convention
 
 When performing tasks, tag each skill used with its emoji inline and provide a summary of skills used at the end of the task.
