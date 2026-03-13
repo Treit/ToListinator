@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 
 namespace ToListinator.Analyzers;
@@ -26,42 +26,50 @@ public class IdentitySelectAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+        context.RegisterCompilationStartAction(startContext =>
+        {
+            var enumerableType = startContext.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            if (enumerableType is null)
+            {
+                return;
+            }
+
+            startContext.RegisterOperationAction(
+                ctx => AnalyzeInvocation(ctx, enumerableType),
+                OperationKind.Invocation);
+        });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
     {
-        var invocation = (InvocationExpressionSyntax)context.Node;
+        var invocation = (IInvocationOperation)context.Operation;
 
-        if (invocation is not
-            {
-                Expression: MemberAccessExpressionSyntax
-                {
-                    Name.Identifier.ValueText: "Select"
-                } memberAccess,
-                ArgumentList.Arguments: [{ Expression: { } lambdaExpression }],
-            })
+        if (invocation.TargetMethod.Name is not "Select"
+            || !SymbolEqualityComparer.Default.Equals(invocation.TargetMethod.ContainingType, enumerableType))
         {
             return;
         }
+
+        // Drop to syntax for identity lambda check and to exclude static form
+        if (invocation.Syntax is not InvocationExpressionSyntax
+            {
+                Expression: MemberAccessExpressionSyntax memberAccess,
+                ArgumentList.Arguments: [{ Expression: { } lambdaExpression }]
+            } invocationSyntax)
+        {
+            return;
+        }
+
         if (!IsIdentityLambda(lambdaExpression))
         {
             return;
         }
 
-        // Verify this is System.Linq.Enumerable.Select
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(memberAccess);
-        if (symbolInfo.Symbol is not IMethodSymbol method ||
-            method.ContainingType?.ToDisplayString() != "System.Linq.Enumerable")
-        {
-            return;
-        }
-
         // Determine highlight location based on whether this is a chained call
-        var location = invocation.Parent is MemberAccessExpressionSyntax parentMemberAccess &&
-                      parentMemberAccess.Expression == invocation
-            ? CreateChainedLocation(memberAccess, invocation)
-            : invocation.GetLocation();
+        var location = invocationSyntax.Parent is MemberAccessExpressionSyntax parentMemberAccess &&
+                      parentMemberAccess.Expression == invocationSyntax
+            ? CreateChainedLocation(memberAccess, invocationSyntax)
+            : invocationSyntax.GetLocation();
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, location));
     }
