@@ -21,9 +21,8 @@ internal class TestSingleElementAccess
         var singleOrDefault = numbers.ToList().SingleOrDefault();
         var elementAt = numbers.ToList().ElementAt(2);
 
-        // Indexer patterns
+        // Indexer patterns (only ToList, not ToArray — see issue #64)
         var indexed = numbers.ToList()[0];
-        var arrayIndexed = numbers.ToArray()[1];
         var variableIndex = 3;
         var indexedVar = numbers.ToList()[variableIndex];
 
@@ -35,13 +34,16 @@ internal class TestSingleElementAccess
 
         Console.WriteLine($"Results: {first}, {last}, {single}, {firstOrDefault}");
         Console.WriteLine($"Results: {lastOrDefault}, {singleOrDefault}, {elementAt}");
-        Console.WriteLine($"Indexed: {indexed}, {arrayIndexed}, {indexedVar}");
+        Console.WriteLine($"Indexed: {indexed}, {indexedVar}");
         Console.WriteLine($"Chained: {chained}");
 
         // These should NOT trigger TL008
 
         // No materialization
         var okFirst = numbers.First();
+
+        // ToArray indexer excluded — exception semantics change (issue #64)
+        var arrayIndexed = numbers.ToArray()[1];
 
         // Materialization result stored in variable
         var list = numbers.ToList();

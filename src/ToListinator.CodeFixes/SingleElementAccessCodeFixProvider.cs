@@ -130,12 +130,12 @@ public class SingleElementAccessCodeFixProvider : CodeFixProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Pattern: source.ToList()[index] or source.ToArray()[index]
+        // Pattern: source.ToList()[index] — only ToList, not ToArray (see issue #64)
         if (elementAccess.Expression is not InvocationExpressionSyntax
             {
                 Expression: MemberAccessExpressionSyntax
                 {
-                    Name.Identifier.ValueText: "ToList" or "ToArray",
+                    Name.Identifier.ValueText: "ToList",
                     Expression: var sourceExpression
                 }
             }
