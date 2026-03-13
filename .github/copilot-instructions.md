@@ -61,3 +61,22 @@ Analyzers and code fixes target **netstandard2.0** with `<EnforceExtendedAnalyze
 4. Update `AnalyzerReleases.Unshipped.md`
 5. Update `README.md` with the new rule's documentation
 6. Run `dotnet build && dotnet test`
+
+## Skill Emoji Convention
+
+When performing tasks, tag each skill used with its emoji inline and provide a summary of skills used at the end of the task.
+
+| Emoji | Skill |
+|-------|-------|
+| 📁 | Project Layout |
+| 🔍 | Writing Analyzers |
+| 🔧 | Code Fix Providers |
+| 🎀 | Trivia Handling |
+| 🛠️ | Utility Usage |
+| 🎯 | Pattern Matching |
+| 🧪 | Writing Tests |
+| 🏗️ | Testing with Test App |
+| 🌳 | Roslyn Syntax Tree Navigation |
+| ✅ | Adding New Analyzer E2E |
+
+Example: When writing an analyzer, tag the work with 🔍 inline, and at the end summarize: **Skills used:** 🔍 Writing Analyzers, 🎯 Pattern Matching, 🧪 Writing Tests
