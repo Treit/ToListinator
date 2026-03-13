@@ -1,5 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
@@ -29,86 +28,86 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+        context.RegisterCompilationStartAction(startContext =>
+        {
+            var enumerableType = startContext.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            if (enumerableType is null)
+            {
+                return;
+            }
+
+            startContext.RegisterOperationAction(
+                ctx => AnalyzeInvocation(ctx, enumerableType),
+                OperationKind.Invocation);
+        });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
     {
-        var invocationExpression = (InvocationExpressionSyntax)context.Node;
+        var invocation = (IInvocationOperation)context.Operation;
 
-        // Check if this is a ToList() or ToArray() call
-        if (!IsToListOrToArrayCall(invocationExpression, out var methodName))
+        // Check if this is a parameterless ToList() or ToArray() from System.Linq.Enumerable
+        if (invocation.TargetMethod.Name is not ("ToList" or "ToArray")
+            || invocation.TargetMethod.Parameters.Length != 1
+            || !SymbolEqualityComparer.Default.Equals(invocation.TargetMethod.ContainingType, enumerableType))
         {
             return;
         }
 
-        // Check if this ToList/ToArray is in the middle of a method chain
-        if (IsUnnecessaryInMethodChain(invocationExpression, context.SemanticModel))
+        if (!IsUnnecessaryInContext(invocation, context.Compilation))
         {
-            // Report diagnostic on the method call itself (e.g., "ToList()"), not the entire expression
-            var memberAccess = (MemberAccessExpressionSyntax)invocationExpression.Expression;
-            var methodLocation = Location.Create(
-                invocationExpression.SyntaxTree,
-                TextSpan.FromBounds(
-                    memberAccess.Name.SpanStart,
-                    invocationExpression.Span.End));
+            return;
+        }
 
-            var diagnostic = Diagnostic.Create(Rule, methodLocation, methodName);
-            context.ReportDiagnostic(diagnostic);
+        // Report diagnostic on the method call subspan (e.g., "ToList()")
+        if (invocation.Syntax is InvocationExpressionSyntax
+            {
+                Expression: MemberAccessExpressionSyntax memberAccess
+            } invocationSyntax)
+        {
+            var location = Location.Create(
+                invocationSyntax.SyntaxTree,
+                TextSpan.FromBounds(memberAccess.Name.SpanStart, invocationSyntax.Span.End));
+
+            context.ReportDiagnostic(Diagnostic.Create(Rule, location, invocation.TargetMethod.Name));
         }
     }
 
-    private static bool IsToListOrToArrayCall(InvocationExpressionSyntax invocation, out string methodName)
+    private static bool IsUnnecessaryInContext(IInvocationOperation toListOrToArray, Compilation compilation)
     {
-        methodName = string.Empty;
+        // Walk up through implicit conversions to find the consuming operation
+        IOperation current = toListOrToArray;
 
-        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-            memberAccess.Name.Identifier.ValueText is "ToList" or "ToArray" &&
-            invocation.ArgumentList.Arguments.Count == 0) // No arguments - we're looking for parameterless ToList()/ToArray()
+        // Roslyn may wrap the result in one or more implicit conversions
+        // (e.g. covariance, interface adaptation). Walk past them all.
+        while (current.Parent is IConversionOperation { IsImplicit: true })
         {
-            methodName = memberAccess.Name.Identifier.ValueText;
-            return true;
+            current = current.Parent;
         }
 
-        return false;
-    }
-
-    private static bool IsUnnecessaryInMethodChain(InvocationExpressionSyntax invocation, SemanticModel semanticModel)
-    {
-        // Look at the parent node to see if this ToList/ToArray result is immediately used in another method call
-        var parent = invocation.Parent;
-
-        // Walk up to find the member access expression that uses this invocation
-        if (parent is MemberAccessExpressionSyntax memberAccess && memberAccess.Expression == invocation)
+        // Check if used as an argument to another invocation
+        if (current.Parent is IArgumentOperation argument
+            && argument.Parent is IInvocationOperation parentInvocation)
         {
-            // Check if the member access is part of another invocation
-            if (memberAccess.Parent is InvocationExpressionSyntax parentInvocation)
+            // Extension method chain: ToList/ToArray is the 'this' argument (ordinal 0)
+            if (parentInvocation.TargetMethod.IsExtensionMethod
+                && argument.Parameter is { Ordinal: 0 })
             {
-                // This is a chain like items.ToList().Select(...) where:
-                // - invocation is "items.ToList()"
-                // - memberAccess is "items.ToList().Select"
-                // - parentInvocation is "items.ToList().Select(...)"
+                return IsMethodThatCanWorkWithoutMaterialization(parentInvocation.TargetMethod.Name);
+            }
 
-                var chainedMethodName = memberAccess.Name.Identifier.ValueText;
-                return IsMethodThatCanWorkWithoutMaterialization(chainedMethodName);
+            // Regular argument: check if the parameter accepts IEnumerable<T>
+            if (argument.Parameter is not null)
+            {
+                return CanParameterAcceptIEnumerable(argument.Parameter.Type, toListOrToArray, compilation);
             }
         }
 
-        // Check if this is used as an argument to a method that accepts IEnumerable<T>
-        if (parent is ArgumentSyntax argument)
+        // Instance method chain: ToList/ToArray result is the receiver of the next call
+        if (current.Parent is IInvocationOperation instanceParent
+            && instanceParent.Instance == current)
         {
-            // Walk up to find the invocation that contains this argument
-            var argumentParent = argument.Parent;
-            while (argumentParent != null && argumentParent is not InvocationExpressionSyntax)
-            {
-                argumentParent = argumentParent.Parent;
-            }
-
-            if (argumentParent is InvocationExpressionSyntax parentInvocation)
-            {
-                // Use semantic analysis to determine if the parameter accepts IEnumerable<T>
-                return CanParameterAcceptIEnumerable(parentInvocation, argument, invocation, semanticModel);
-            }
+            return IsMethodThatCanWorkWithoutMaterialization(instanceParent.TargetMethod.Name);
         }
 
         return false;
@@ -120,69 +119,25 @@ public class ToListToArrayMethodChainAnalyzer : DiagnosticAnalyzer
     }
 
     private static bool CanParameterAcceptIEnumerable(
-        InvocationExpressionSyntax parentInvocation,
-        ArgumentSyntax argument,
-        InvocationExpressionSyntax toListOrToArrayCall,
-        SemanticModel semanticModel)
+        ITypeSymbol parameterType,
+        IInvocationOperation toListOrToArrayCall,
+        Compilation compilation)
     {
-        // Get the symbol information for the method being called
-        var symbolInfo = semanticModel.GetSymbolInfo(parentInvocation);
-        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
-        {
-            return false;
-        }
-
-        // Find which parameter position this argument corresponds to
-        var argumentList = argument.Parent as ArgumentListSyntax;
-        if (argumentList == null)
-        {
-            return false;
-        }
-
-        var argumentIndex = argumentList.Arguments.IndexOf(argument);
-        if (argumentIndex < 0 || argumentIndex >= methodSymbol.Parameters.Length)
-        {
-            return false;
-        }
-
-        var parameter = methodSymbol.Parameters[argumentIndex];
-        var parameterType = parameter.Type;
-
-        // Get the element type from the ToList/ToArray call
-        var toListSymbolInfo = semanticModel.GetSymbolInfo(toListOrToArrayCall);
-        if (toListSymbolInfo.Symbol is not IMethodSymbol toListMethod)
-        {
-            return false;
-        }
-
-        if (toListMethod.ReturnType is not INamedTypeSymbol returnType ||
-            returnType.TypeArguments.Length != 1)
+        if (toListOrToArrayCall.TargetMethod.ReturnType is not INamedTypeSymbol returnType
+            || returnType.TypeArguments.Length != 1)
         {
             return false;
         }
 
         var elementType = returnType.TypeArguments[0];
 
-        // Check if the parameter can accept IEnumerable<elementType>
-        return CanTypeAcceptIEnumerable(parameterType, elementType, semanticModel.Compilation);
-    }
-
-    private static bool CanTypeAcceptIEnumerable(ITypeSymbol parameterType, ITypeSymbol elementType, Compilation compilation)
-    {
-        // Get IEnumerable<T> type symbol
         var iEnumerableType = compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
-        if (iEnumerableType == null)
+        if (iEnumerableType is null)
         {
             return false;
         }
 
-        // Construct IEnumerable<elementType>
         var constructedIEnumerable = iEnumerableType.Construct(elementType);
-
-        // Check if parameter type is assignable from IEnumerable<elementType>
-        // This handles inheritance, interface implementation, and variance
-        var conversion = compilation.HasImplicitConversion(constructedIEnumerable, parameterType);
-
-        return conversion;
+        return compilation.HasImplicitConversion(constructedIEnumerable, parameterType);
     }
 }
