@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
 
 namespace ToListinator.Analyzers;
@@ -34,120 +33,77 @@ public class ToArrayLengthAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            startContext.RegisterSyntaxNodeAction(
-                analysisContext => AnalyzeBinaryExpression(analysisContext, enumerableType),
-                SyntaxKind.GreaterThanExpression,
-                SyntaxKind.GreaterThanOrEqualExpression,
-                SyntaxKind.NotEqualsExpression,
-                SyntaxKind.LessThanExpression,
-                SyntaxKind.LessThanOrEqualExpression,
-                SyntaxKind.EqualsExpression);
+            startContext.RegisterOperationAction(
+                analysisContext => AnalyzeBinaryOperation(analysisContext, enumerableType),
+                OperationKind.Binary);
         });
     }
 
-    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context, ITypeSymbol enumerableType)
+    private static void AnalyzeBinaryOperation(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
     {
-        if (context.Node is not BinaryExpressionSyntax binaryExpression)
-        {
-            return;
-        }
+        var binary = (IBinaryOperation)context.Operation;
 
-        if (IsToArrayLengthComparison(binaryExpression, context, enumerableType))
+        if (TryMatchToArrayLengthComparison(binary.LeftOperand, binary.RightOperand, binary.OperatorKind, isLengthOnLeft: true, enumerableType)
+            || TryMatchToArrayLengthComparison(binary.RightOperand, binary.LeftOperand, binary.OperatorKind, isLengthOnLeft: false, enumerableType))
         {
-            context.ReportDiagnostic(Diagnostic.Create(Rule, binaryExpression.GetLocation()));
+            context.ReportDiagnostic(Diagnostic.Create(Rule, binary.Syntax.GetLocation()));
         }
     }
 
-    private static bool IsToArrayLengthComparison(
-        BinaryExpressionSyntax binaryExpression,
-        SyntaxNodeAnalysisContext context,
-        ITypeSymbol enumerableType)
+    private static bool TryMatchToArrayLengthComparison(
+        IOperation lengthSide,
+        IOperation constantSide,
+        BinaryOperatorKind operatorKind,
+        bool isLengthOnLeft,
+        INamedTypeSymbol enumerableType)
     {
-        return IsLengthComparisonAgainstZeroOrOne(binaryExpression.Left, binaryExpression.Right, binaryExpression.OperatorToken.Kind(), isLeftOperand: true, context, enumerableType) ||
-               IsLengthComparisonAgainstZeroOrOne(binaryExpression.Right, binaryExpression.Left, binaryExpression.OperatorToken.Kind(), isLeftOperand: false, context, enumerableType);
-    }
-
-    private static bool IsLengthComparisonAgainstZeroOrOne(
-        SyntaxNode potentialLengthExpression,
-        SyntaxNode otherOperand,
-        SyntaxKind operatorKind,
-        bool isLeftOperand,
-        SyntaxNodeAnalysisContext context,
-        ITypeSymbol enumerableType)
-    {
-        if (!TryGetToArrayInvocation(potentialLengthExpression, out var toArrayInvocation))
-        {
-            return false;
-        }
-
-        if (!IsLinqToArrayCall(toArrayInvocation!, context, enumerableType))
-        {
-            return false;
-        }
-
-        return otherOperand is LiteralExpressionSyntax { Token.ValueText: "0" or "1" } literal &&
-               IsValidLengthComparisonPattern(operatorKind, literal.Token.ValueText, isLeftOperand);
-    }
-
-    private static bool TryGetToArrayInvocation(SyntaxNode expression, out InvocationExpressionSyntax? toArrayInvocation)
-    {
-        toArrayInvocation = null;
-
-        if (expression is MemberAccessExpressionSyntax
+        if (lengthSide is not IPropertyReferenceOperation
             {
-                Name.Identifier.ValueText: "Length",
-                Expression: InvocationExpressionSyntax invocation
-            } &&
-            invocation.Expression is MemberAccessExpressionSyntax
-            {
-                Name.Identifier.ValueText: "ToArray",
-                Expression: not null
-            })
-        {
-            toArrayInvocation = invocation;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsLinqToArrayCall(
-        InvocationExpressionSyntax invocation,
-        SyntaxNodeAnalysisContext context,
-        ITypeSymbol enumerableType)
-    {
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
-        return symbolInfo.Symbol is IMethodSymbol methodSymbol &&
-               SymbolEqualityComparer.Default.Equals(methodSymbol.ContainingType, enumerableType);
-    }
-
-    private static bool IsValidLengthComparisonPattern(SyntaxKind operatorKind, string constantValue, bool isLeftOperand)
-    {
-        if (constantValue is not ("0" or "1"))
-        {
-            return false;
-        }
-
-        return isLeftOperand
-            ? operatorKind switch
-            {
-                SyntaxKind.GreaterThanToken when constantValue == "0" => true,
-                SyntaxKind.GreaterThanEqualsToken when constantValue == "1" => true,
-                SyntaxKind.ExclamationEqualsToken when constantValue == "0" => true,
-                SyntaxKind.EqualsEqualsToken when constantValue == "0" => true,
-                SyntaxKind.LessThanEqualsToken when constantValue == "0" => true,
-                SyntaxKind.LessThanToken when constantValue == "1" => true,
-                _ => false
+                Property.Name: "Length",
+                Instance: IInvocationOperation { TargetMethod: { Name: "ToArray" } toArrayMethod }
             }
-            : operatorKind switch
+            || !SymbolEqualityComparer.Default.Equals(toArrayMethod.ContainingType, enumerableType))
+        {
+            return false;
+        }
+
+        if (constantSide is not ILiteralOperation { ConstantValue: { HasValue: true, Value: int constantValue } }
+            || constantValue is not (0 or 1))
+        {
+            return false;
+        }
+
+        return IsValidLengthComparisonPattern(operatorKind, constantValue, isLengthOnLeft);
+    }
+
+    private static bool IsValidLengthComparisonPattern(
+        BinaryOperatorKind operatorKind,
+        int constantValue,
+        bool isLengthOnLeft)
+    {
+        if (isLengthOnLeft)
+        {
+            return operatorKind switch
             {
-                SyntaxKind.LessThanToken when constantValue == "0" => true,
-                SyntaxKind.LessThanEqualsToken when constantValue == "1" => true,
-                SyntaxKind.ExclamationEqualsToken when constantValue == "0" => true,
-                SyntaxKind.EqualsEqualsToken when constantValue == "0" => true,
-                SyntaxKind.GreaterThanEqualsToken when constantValue == "0" => true,
-                SyntaxKind.GreaterThanToken when constantValue == "1" => true,
+                BinaryOperatorKind.GreaterThan when constantValue == 0 => true,
+                BinaryOperatorKind.GreaterThanOrEqual when constantValue == 1 => true,
+                BinaryOperatorKind.NotEquals when constantValue == 0 => true,
+                BinaryOperatorKind.Equals when constantValue == 0 => true,
+                BinaryOperatorKind.LessThanOrEqual when constantValue == 0 => true,
+                BinaryOperatorKind.LessThan when constantValue == 1 => true,
                 _ => false
             };
+        }
+
+        return operatorKind switch
+        {
+            BinaryOperatorKind.LessThan when constantValue == 0 => true,
+            BinaryOperatorKind.LessThanOrEqual when constantValue == 1 => true,
+            BinaryOperatorKind.NotEquals when constantValue == 0 => true,
+            BinaryOperatorKind.Equals when constantValue == 0 => true,
+            BinaryOperatorKind.GreaterThanOrEqual when constantValue == 0 => true,
+            BinaryOperatorKind.GreaterThan when constantValue == 1 => true,
+            _ => false
+        };
     }
 }
