@@ -270,9 +270,12 @@ Benefits: handles multi-method chains and single misaligned calls, preserves com
 
 ### Creating New Utilities
 
-When you discover a reusable pattern:
-1. Add static methods to `ToListinator.Utils`.
-2. Follow the `FluentChainAligner` pattern: accept `SyntaxNode`, return transformed `SyntaxNode`, preserve trivia.
+When you discover a reusable pattern (in analyzers **or** code fixes):
+1. Add static methods to the appropriate class in `ToListinator.Utils`:
+   - **Syntax transformations** → `FluentChainAligner` or a new class. Accept `SyntaxNode`, return transformed `SyntaxNode`, preserve trivia.
+   - **Code fix boilerplate** → `CodeFixHelper`. Registration, node finding, or code action creation helpers.
+   - **Trivia operations** → `TriviaHelper`. Trivia transfer, cleanup, or formatting helpers.
+2. Follow existing conventions: static methods, preserve trivia, accept `CancellationToken` where appropriate.
 3. Add unit tests in `ToListinator.Utils.Tests`.
 
 ---
