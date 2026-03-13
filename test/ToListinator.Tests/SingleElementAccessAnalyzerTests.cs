@@ -239,7 +239,7 @@ public class SingleElementAccessAnalyzerTests
     }
 
     [Fact]
-    public async Task DetectsToArrayIndexer()
+    public async Task DoesNotDetectToArrayIndexer()
     {
         const string testCode = """
             using System.Collections.Generic;
@@ -250,7 +250,7 @@ public class SingleElementAccessAnalyzerTests
                 void M()
                 {
                     var items = new[] { 1, 2, 3 };
-                    var element = {|TL008:items.ToArray()[0]|};
+                    var element = items.ToArray()[0];
                 }
             }
             """;
@@ -384,6 +384,53 @@ public class SingleElementAccessAnalyzerTests
             """;
 
         // TL001 handles this, TL008 should not fire
+        var test = TestHelper.CreateAnalyzerTest<SingleElementAccessAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotDetectCustomFirstExtension()
+    {
+        const string testCode = """
+            using System.Collections.Generic;
+            using System.Linq;
+
+            static class MyExtensions
+            {
+                public static T First<T>(this List<T> list) => list[0];
+            }
+
+            class C
+            {
+                void M()
+                {
+                    var items = new[] { 1, 2, 3 };
+                    var first = items.ToList().First();
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<SingleElementAccessAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotDetectStaticEnumerableFirst()
+    {
+        const string testCode = """
+            using System.Collections.Generic;
+            using System.Linq;
+
+            class C
+            {
+                void M()
+                {
+                    var items = new[] { 1, 2, 3 };
+                    var first = Enumerable.First(items.ToList());
+                }
+            }
+            """;
+
         var test = TestHelper.CreateAnalyzerTest<SingleElementAccessAnalyzer>(testCode);
         await test.RunAsync(CancellationToken.None);
     }

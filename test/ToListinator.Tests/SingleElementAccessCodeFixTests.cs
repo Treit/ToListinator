@@ -189,42 +189,6 @@ public class SingleElementAccessCodeFixTests
     }
 
     [Fact]
-    public async Task FixesToArrayIndexerWithElementAt()
-    {
-        const string testCode = """
-            using System.Collections.Generic;
-            using System.Linq;
-
-            class C
-            {
-                void M()
-                {
-                    var items = new[] { 1, 2, 3 };
-                    var element = {|TL008:items.ToArray()[2]|};
-                }
-            }
-            """;
-
-        const string fixedCode = """
-            using System.Collections.Generic;
-            using System.Linq;
-
-            class C
-            {
-                void M()
-                {
-                    var items = new[] { 1, 2, 3 };
-                    var element = items.ElementAt(2);
-                }
-            }
-            """;
-
-        var test = TestHelper.CreateCodeFixTest<SingleElementAccessAnalyzer, SingleElementAccessCodeFixProvider>(
-            testCode, fixedCode);
-        await test.RunAsync(CancellationToken.None);
-    }
-
-    [Fact]
     public async Task FixesIndexerWithVariableIndex()
     {
         const string testCode = """

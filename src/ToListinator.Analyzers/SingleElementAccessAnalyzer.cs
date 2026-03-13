@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
@@ -43,10 +44,6 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
             startContext.RegisterOperationAction(
                 ctx => AnalyzePropertyReference(ctx, enumerableType),
                 OperationKind.PropertyReference);
-
-            startContext.RegisterOperationAction(
-                ctx => AnalyzeArrayElementReference(ctx, enumerableType),
-                OperationKind.ArrayElementReference);
         });
     }
 
@@ -60,8 +57,11 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // The receiver (ToList/ToArray call) may be in Instance for instance methods,
-        // or in Arguments[0] for extension methods where the receiver is the first argument.
+        if (!SymbolEqualityComparer.Default.Equals(invocation.TargetMethod.ContainingType, enumerableType))
+        {
+            return;
+        }
+
         var innerInvocation = GetReceiverInvocation(invocation);
 
         if (innerInvocation is null
@@ -85,10 +85,19 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
             return instanceInvocation;
         }
 
-        // For extension methods, the receiver is passed as the first argument,
-        // potentially wrapped in an implicit conversion
+        // For extension methods called with dot syntax (e.g., items.ToList().First()),
+        // the receiver is passed as the first argument, potentially wrapped in a conversion.
+        // We exclude the static form (Enumerable.First(items.ToList())) by verifying
+        // the syntax receiver is an invocation, not a type name.
         if (invocation.TargetMethod.IsExtensionMethod
-            && invocation.Arguments.Length > 0)
+            && invocation.Arguments.Length > 0
+            && invocation.Syntax is InvocationExpressionSyntax
+               {
+                   Expression: MemberAccessExpressionSyntax
+                   {
+                       Expression: InvocationExpressionSyntax
+                   }
+               })
         {
             IOperation argValue = invocation.Arguments[0].Value;
 
@@ -128,27 +137,4 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
             Diagnostic.Create(Rule, propRef.Syntax.GetLocation(), properties.ToImmutable()));
     }
 
-    private static void AnalyzeArrayElementReference(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
-    {
-        var arrayRef = (IArrayElementReferenceOperation)context.Operation;
-
-        // Pattern: source.ToArray()[index]
-        if (arrayRef is not
-            {
-                ArrayReference: IInvocationOperation
-                {
-                    TargetMethod: { Name: "ToArray" } toArrayMethod
-                }
-            }
-            || !SymbolEqualityComparer.Default.Equals(toArrayMethod.ContainingType, enumerableType))
-        {
-            return;
-        }
-
-        var properties = ImmutableDictionary.CreateBuilder<string, string?>();
-        properties.Add(AccessKindProperty, AccessKindIndexer);
-
-        context.ReportDiagnostic(
-            Diagnostic.Create(Rule, arrayRef.Syntax.GetLocation(), properties.ToImmutable()));
-    }
 }

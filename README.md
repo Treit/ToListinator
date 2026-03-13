@@ -117,7 +117,7 @@ var result = items.Where(x => x.IsValid).Select(x => x.Name).ToArray();
 ### TL008 - Single Element Access After ToList/ToArray
 **Category:** Performance | **Severity:** Warning
 
-Detects `ToList()` or `ToArray()` calls followed by single element access methods (`First`, `Last`, `Single`, `ElementAt`, etc.) or indexer access, which materializes the entire collection unnecessarily.
+Detects `ToList()` or `ToArray()` calls followed by single element access methods (`First`, `Last`, `Single`, `ElementAt`, etc.) or `ToList()` followed by indexer access, which materializes the entire collection unnecessarily.
 
 **Example:**
 ```csharp
@@ -126,8 +126,8 @@ var numbers = Enumerable.Range(0, 1000);
 // ❌ Bad - materializes entire collection just to get first element
 var first = numbers.ToList().First();
 
-// ❌ Bad - materializes entire array just to index
-var element = numbers.ToArray()[42];
+// ❌ Bad - materializes list just to index
+var element = numbers.ToList()[42];
 
 // ✅ Good - accesses element directly
 var first = numbers.First();
