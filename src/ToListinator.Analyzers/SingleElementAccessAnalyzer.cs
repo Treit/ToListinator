@@ -101,6 +101,8 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
         {
             IOperation argValue = invocation.Arguments[0].Value;
 
+            // Roslyn may wrap the receiver in one or more implicit conversions
+            // (e.g. covariance, interface adaptation). Peel them all off.
             while (argValue is IConversionOperation { IsImplicit: true } conversion)
             {
                 argValue = conversion.Operand;
