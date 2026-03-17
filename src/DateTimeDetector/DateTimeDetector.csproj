@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <PackageId>DateTimeDetector</PackageId>
+    <Title>DateTimeDetector Analyzer and CodeFixes</Title>
+    <Authors>Treit</Authors>
+    <Description>A Roslyn analyzer that detects usage of DateTime and suggests using DateTimeOffset instead.</Description>
+    <PackageTags>analyzer;roslyn;csharp;datetime;datetimeoffset;codefix</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DateTimeDetector.Analyzers/DateTimeDetector.Analyzers.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../DateTimeDetector.CodeFixes/DateTimeDetector.CodeFixes.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../DateTimeDetector.Analyzers/bin/$(Configuration)/netstandard2.0/DateTimeDetector.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="../DateTimeDetector.CodeFixes/bin/$(Configuration)/netstandard2.0/DateTimeDetector.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+</Project>

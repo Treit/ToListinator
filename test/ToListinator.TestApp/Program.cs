@@ -45,6 +45,9 @@ class Program
         // TL010 Test Cases - Unnecessary ToList() on already materialized collections
         TestTL010();
 
+        // DT001 Test Cases - DateTime usage detection
+        TestDateTime.RunAll();
+
         Console.WriteLine("Done!");
     }
 

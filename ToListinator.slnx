@@ -4,9 +4,13 @@
     <Project Path="src/ToListinator.CodeFixes/ToListinator.CodeFixes.csproj" />
     <Project Path="src/ToListinator.Utils/ToListinator.Utils.csproj" />
     <Project Path="src/ToListinator/ToListinator.csproj" />
+    <Project Path="src/DateTimeDetector.Analyzers/DateTimeDetector.Analyzers.csproj" />
+    <Project Path="src/DateTimeDetector.CodeFixes/DateTimeDetector.CodeFixes.csproj" />
+    <Project Path="src/DateTimeDetector/DateTimeDetector.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/ToListinator.Tests/ToListinator.Tests.csproj" />
     <Project Path="test/ToListinator.Utils.Tests/ToListinator.Utils.Tests.csproj" />
+    <Project Path="test/DateTimeDetector.Tests/DateTimeDetector.Tests.csproj" />
   </Folder>
 </Solution>
