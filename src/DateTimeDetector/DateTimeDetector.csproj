@@ -14,6 +14,7 @@
     <Description>A Roslyn analyzer that detects usage of DateTime and suggests using DateTimeOffset instead.</Description>
     <PackageTags>analyzer;roslyn;csharp;datetime;datetimeoffset;codefix</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +25,7 @@
   <ItemGroup>
     <None Include="../DateTimeDetector.Analyzers/bin/$(Configuration)/netstandard2.0/DateTimeDetector.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../DateTimeDetector.CodeFixes/bin/$(Configuration)/netstandard2.0/DateTimeDetector.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
