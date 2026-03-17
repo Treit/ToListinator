@@ -12,6 +12,9 @@
     <Title>DateTimeDetector Analyzer and CodeFixes</Title>
     <Authors>Treit</Authors>
     <Description>A Roslyn analyzer that detects usage of DateTime and suggests using DateTimeOffset instead.</Description>
+    <PackageProjectUrl>https://github.com/Treit/ToListinator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Treit/ToListinator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageTags>analyzer;roslyn;csharp;datetime;datetimeoffset;codefix</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
