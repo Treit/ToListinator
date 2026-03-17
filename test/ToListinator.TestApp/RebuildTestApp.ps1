@@ -15,25 +15,28 @@ Write-Host "Repository root: $repoRoot" -ForegroundColor Yellow
 Set-Location $repoRoot
 
 # Step 1: Clear NuGet package cache for ToListinator
-Write-Host "`n1. Clearing NuGet cache for ToListinator..." -ForegroundColor Cyan
-$packageName = "ToListinator"
-$packageCachePaths = @(
-    "$env:USERPROFILE\.nuget\packages\$packageName",
-    "$env:NUGET_PACKAGES\$packageName"
-)
+Write-Host "`n1. Clearing NuGet cache for ToListinator and DateTimeDetector..." -ForegroundColor Cyan
+$packageNames = @("ToListinator", "DateTimeDetector")
 
-foreach ($path in $packageCachePaths) {
-    if (Test-Path $path) {
-        Write-Host "   Removing cached package from: $path" -ForegroundColor Gray
-        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+foreach ($packageName in $packageNames) {
+    $packageCachePaths = @(
+        "$env:USERPROFILE\.nuget\packages\$packageName",
+        "$env:NUGET_PACKAGES\$packageName"
+    )
+
+    foreach ($path in $packageCachePaths) {
+        if (Test-Path $path) {
+            Write-Host "   Removing cached package from: $path" -ForegroundColor Gray
+            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
-}
 
-# Also clear the global packages folder if different
-$globalPackagesPath = dotnet nuget locals global-packages --list 2>$null | ForEach-Object { if ($_ -match "global-packages: (.*)") { $matches[1] } }
-if ($globalPackagesPath -and (Test-Path "$globalPackagesPath\$packageName")) {
-    Write-Host "   Removing cached package from global packages: $globalPackagesPath\$packageName" -ForegroundColor Gray
-    Remove-Item -Path "$globalPackagesPath\$packageName" -Recurse -Force -ErrorAction SilentlyContinue
+    # Also clear the global packages folder if different
+    $globalPackagesPath = dotnet nuget locals global-packages --list 2>$null | ForEach-Object { if ($_ -match "global-packages: (.*)") { $matches[1] } }
+    if ($globalPackagesPath -and (Test-Path "$globalPackagesPath\$packageName")) {
+        Write-Host "   Removing cached package from global packages: $globalPackagesPath\$packageName" -ForegroundColor Gray
+        Remove-Item -Path "$globalPackagesPath\$packageName" -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Step 2: Clean and rebuild the main ToListinator project (which packages the analyzers)
@@ -47,6 +50,27 @@ Write-Host "   Building ToListinator package..." -ForegroundColor Gray
 $buildResult = dotnet build --configuration Debug --verbosity quiet
 if ($LASTEXITCODE -ne 0) {
     Write-Host "   ERROR: Failed to build ToListinator package!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "   Creating NuGet package..." -ForegroundColor Gray
+$packResult = dotnet pack --configuration Debug --no-build --verbosity quiet
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "   ERROR: Failed to create NuGet package!" -ForegroundColor Red
+    exit 1
+}
+
+# Step 2b: Clean and rebuild the DateTimeDetector project
+Write-Host "`n2b. Rebuilding the DateTimeDetector NuGet package..." -ForegroundColor Cyan
+Set-Location "$repoRoot\src\DateTimeDetector"
+
+Write-Host "   Cleaning previous build..." -ForegroundColor Gray
+dotnet clean --configuration Debug --verbosity quiet
+
+Write-Host "   Building DateTimeDetector package..." -ForegroundColor Gray
+$buildResult = dotnet build --configuration Debug --verbosity quiet
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "   ERROR: Failed to build DateTimeDetector package!" -ForegroundColor Red
     exit 1
 }
 
@@ -76,4 +100,4 @@ dotnet clean
 dotnet build
 
 Write-Host "`nRebuild complete! The test application has been rebuilt with the latest analyzers." -ForegroundColor Green
-Write-Host "Check the build output above for analyzer warnings (TL001, TL002, TL003, TL004, TL005, TL006, TL007)." -ForegroundColor Yellow
+Write-Host "Check the build output above for analyzer warnings (TL001-TL010, DT001)." -ForegroundColor Yellow

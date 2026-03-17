@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="ToListinator" VersionOverride="1.0.0"/>
+    <PackageReference Include="DateTimeDetector" VersionOverride="1.0.0"/>
   </ItemGroup>
 
 </Project>
