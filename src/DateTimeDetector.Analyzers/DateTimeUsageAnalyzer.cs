@@ -51,11 +51,28 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Skip if this identifier is inside a DateTimeOffset usage (e.g., DateTimeOffset.DateTime property)
-        if (identifierName.Parent is MemberAccessExpressionSyntax memberAccess
+        SyntaxNode nodeToReport = identifierName;
+
+        if (identifierName.Parent is QualifiedNameSyntax qualifiedName
+            && qualifiedName.Right == identifierName)
+        {
+            // Fully-qualified type reference like System.DateTime in a type position
+            nodeToReport = qualifiedName;
+        }
+        else if (identifierName.Parent is MemberAccessExpressionSyntax memberAccess
             && memberAccess.Name == identifierName)
         {
-            return;
+            // Could be System.DateTime (namespace-qualified) or DateTimeOffset.DateTime (property).
+            // Check if the left side is a namespace to distinguish.
+            var expressionSymbol = context.SemanticModel.GetSymbolInfo(memberAccess.Expression, context.CancellationToken);
+            if (expressionSymbol.Symbol is INamespaceSymbol)
+            {
+                nodeToReport = memberAccess;
+            }
+            else
+            {
+                return;
+            }
         }
 
         var symbolInfo = context.SemanticModel.GetSymbolInfo(identifierName, context.CancellationToken);
@@ -74,7 +91,7 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
         if (typeSymbol is not null
             && SymbolEqualityComparer.Default.Equals(typeSymbol, dateTimeType))
         {
-            context.ReportDiagnostic(Diagnostic.Create(Rule, identifierName.GetLocation()));
+            context.ReportDiagnostic(Diagnostic.Create(Rule, nodeToReport.GetLocation()));
         }
     }
 }

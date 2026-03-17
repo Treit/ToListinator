@@ -32,9 +32,10 @@ public class DateTimeUsageCodeFixProvider : CodeFixProvider
         var diagnostic = context.Diagnostics[0];
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var identifierNode = root.FindToken(diagnosticSpan.Start)
-            .Parent?
-            .AncestorsAndSelf()
+        // The diagnostic span may cover just "DateTime" or a qualified "System.DateTime".
+        // Find the DateTime identifier within the reported span.
+        var node = root.FindNode(diagnosticSpan);
+        var identifierNode = node.DescendantNodesAndSelf()
             .OfType<IdentifierNameSyntax>()
             .FirstOrDefault(n => n.Identifier.ValueText == "DateTime");
 
