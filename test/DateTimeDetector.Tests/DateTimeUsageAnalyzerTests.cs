@@ -193,4 +193,36 @@ public class DateTimeUsageAnalyzerTests
         var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task DetectsFullyQualifiedDateTime()
+    {
+        var testCode = """
+            class C
+            {
+                void M()
+                {
+                    var now = {|DT001:System.DateTime|}.Now;
+                    var utcNow = {|DT001:System.DateTime|}.UtcNow;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DetectsFullyQualifiedDateTimeProperty()
+    {
+        var testCode = """
+            class C
+            {
+                {|DT001:System.DateTime|} StartTime { get; set; }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
 }
