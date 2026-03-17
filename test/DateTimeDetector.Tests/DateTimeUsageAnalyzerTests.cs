@@ -1,4 +1,5 @@
 using DateTimeDetector.Analyzers;
+using Microsoft.CodeAnalysis;
 
 namespace DateTimeDetector.Tests;
 
@@ -112,6 +113,42 @@ public class DateTimeUsageAnalyzerTests
     }
 
     [Fact]
+    public async Task DetectsFullyQualifiedDateTimeStaticMembers()
+    {
+        var testCode = """
+            class C
+            {
+                void M()
+                {
+                    var now = System.{|DT001:DateTime|}.Now;
+                    var utcNow = System.{|DT001:DateTime|}.UtcNow;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DetectsTopLevelFullyQualifiedDateTimeStaticMembers()
+    {
+        var testCode = """
+            using System;
+
+            var localNow = System.{|DT001:DateTime|}.Now;
+            var utcNow = System.{|DT001:DateTime|}.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        test.TestState.OutputKind = OutputKind.ConsoleApplication;
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task DetectsNewDateTime()
     {
         var testCode = """
@@ -141,6 +178,25 @@ public class DateTimeUsageAnalyzerTests
                 void M()
                 {
                     DateTimeOffset now = DateTimeOffset.Now;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeOffsetDateTimeProperty()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var dt = DateTimeOffset.Now.DateTime;
                 }
             }
             """;

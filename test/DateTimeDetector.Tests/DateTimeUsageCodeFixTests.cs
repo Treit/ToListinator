@@ -1,5 +1,6 @@
 using DateTimeDetector.Analyzers;
 using DateTimeDetector.CodeFixes;
+using Microsoft.CodeAnalysis;
 
 namespace DateTimeDetector.Tests;
 
@@ -122,6 +123,36 @@ public class DateTimeUsageCodeFixTests
 
         var test = TestHelper.CreateCodeFixTest<DateTimeUsageAnalyzer, DateTimeUsageCodeFixProvider>(
             testCode, fixedCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task FixesTopLevelFullyQualifiedDateTimeStaticMembers()
+    {
+        var testCode = """
+            using System;
+
+            var localNow = System.{|DT001:DateTime|}.Now;
+            var utcNow = System.{|DT001:DateTime|}.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var fixedCode = """
+            using System;
+
+            var localNow = System.DateTimeOffset.Now;
+            var utcNow = System.DateTimeOffset.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var test = TestHelper.CreateCodeFixTest<DateTimeUsageAnalyzer, DateTimeUsageCodeFixProvider>(
+            testCode, fixedCode);
+        test.TestState.OutputKind = OutputKind.ConsoleApplication;
+        test.FixedState.OutputKind = OutputKind.ConsoleApplication;
         await test.RunAsync(CancellationToken.None);
     }
 

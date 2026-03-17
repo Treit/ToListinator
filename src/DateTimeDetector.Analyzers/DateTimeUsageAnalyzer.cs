@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 
 namespace DateTimeDetector.Analyzers;
 
@@ -51,15 +52,7 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Skip if this identifier is inside a DateTimeOffset usage (e.g., DateTimeOffset.DateTime property)
-        if (identifierName.Parent is MemberAccessExpressionSyntax memberAccess
-            && memberAccess.Name == identifierName)
-        {
-            return;
-        }
-
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(identifierName, context.CancellationToken);
-        var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault();
+        var symbol = GetSymbol(context.SemanticModel, identifierName, context.CancellationToken);
 
         var typeSymbol = symbol switch
         {
@@ -76,5 +69,22 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, identifierName.GetLocation()));
         }
+    }
+
+    private static ISymbol? GetSymbol(
+        SemanticModel semanticModel,
+        IdentifierNameSyntax identifierName,
+        CancellationToken cancellationToken)
+    {
+        SyntaxNode semanticTarget = identifierName.Parent switch
+        {
+            MemberAccessExpressionSyntax memberAccess when memberAccess.Name == identifierName => memberAccess,
+            QualifiedNameSyntax qualifiedName when qualifiedName.Right == identifierName => qualifiedName,
+            AliasQualifiedNameSyntax aliasQualifiedName when aliasQualifiedName.Name == identifierName => aliasQualifiedName,
+            _ => identifierName
+        };
+
+        var symbolInfo = semanticModel.GetSymbolInfo(semanticTarget, cancellationToken);
+        return symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault();
     }
 }
