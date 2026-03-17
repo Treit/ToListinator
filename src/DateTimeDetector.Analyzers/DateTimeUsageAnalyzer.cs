@@ -59,6 +59,12 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
             // Fully-qualified type reference like System.DateTime in a type position
             nodeToReport = qualifiedName;
         }
+        else if (identifierName.Parent is AliasQualifiedNameSyntax aliasQualifiedName
+            && aliasQualifiedName.Name == identifierName)
+        {
+            // global::DateTime
+            nodeToReport = aliasQualifiedName;
+        }
         else if (identifierName.Parent is MemberAccessExpressionSyntax memberAccess
             && memberAccess.Name == identifierName)
         {

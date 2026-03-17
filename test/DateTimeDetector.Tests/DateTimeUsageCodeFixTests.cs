@@ -242,4 +242,34 @@ public class DateTimeUsageCodeFixTests
             testCode, fixedCode);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task FixesTopLevelFullyQualifiedDateTime()
+    {
+        var testCode = """
+            using System;
+
+            var localNow = {|DT001:System.DateTime|}.Now;
+            var utcNow = {|DT001:System.DateTime|}.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var fixedCode = """
+            using System;
+
+            var localNow = System.DateTimeOffset.Now;
+            var utcNow = System.DateTimeOffset.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var test = TestHelper.CreateCodeFixTest<DateTimeUsageAnalyzer, DateTimeUsageCodeFixProvider>(
+            testCode, fixedCode);
+        test.TestState.OutputKind = Microsoft.CodeAnalysis.OutputKind.ConsoleApplication;
+        test.FixedState.OutputKind = Microsoft.CodeAnalysis.OutputKind.ConsoleApplication;
+        await test.RunAsync(CancellationToken.None);
+    }
 }
