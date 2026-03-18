@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
 
 namespace ToListinator.Analyzers;
@@ -25,75 +24,82 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzeForeachStatement, SyntaxKind.ForEachStatement);
+        context.RegisterOperationAction(AnalyzeForEachLoop, OperationKind.Loop);
     }
 
-    private static void AnalyzeForeachStatement(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeForEachLoop(OperationAnalysisContext context)
     {
-        var foreachStatement = (ForEachStatementSyntax)context.Node;
-
-        if (foreachStatement.Expression is not BinaryExpressionSyntax binaryExpr ||
-            !binaryExpr.IsKind(SyntaxKind.CoalesceExpression))
+        if (context.Operation is not IForEachLoopOperation forEachLoop)
         {
             return;
         }
 
-        var fallbackExpression = binaryExpr.Right;
+        // Unwrap implicit conversions on the collection expression
+        IOperation collection = forEachLoop.Collection;
 
-        if (!IsEmptyCollectionExpression(fallbackExpression))
+        // Roslyn may wrap the collection in one or more implicit conversions
+        // (e.g. covariance, interface adaptation). Peel them all off.
+        while (collection is IConversionOperation { IsImplicit: true } conversion)
+        {
+            collection = conversion.Operand;
+        }
+
+        if (collection is not ICoalesceOperation coalesce)
         {
             return;
         }
 
-        var diagnostic = Diagnostic.Create(Rule, binaryExpr.GetLocation());
-        context.ReportDiagnostic(diagnostic);
+        // Check if the fallback (WhenNull) is an empty collection
+        IOperation fallback = coalesce.WhenNull;
+
+        // Roslyn may wrap the fallback in one or more implicit conversions.
+        while (fallback is IConversionOperation { IsImplicit: true } fallbackConversion)
+        {
+            fallback = fallbackConversion.Operand;
+        }
+
+        if (!IsEmptyCollectionOperation(fallback))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, coalesce.Syntax.GetLocation()));
     }
 
-    private static bool IsEmptyCollectionExpression(ExpressionSyntax expression)
+    private static bool IsEmptyCollectionOperation(IOperation operation)
     {
-        return expression switch
+        return operation switch
         {
-            // Case 1: new Something<T>() with no args (e.g. new List<string>())
-            ObjectCreationExpressionSyntax objectCreation
-                when objectCreation.ArgumentList?.Arguments.Count == 0 => true,
+            // new List<T>(), new HashSet<T>(), etc. with no arguments
+            IObjectCreationOperation { Arguments.Length: 0 } => true,
 
-            // Case 2: Array.Empty<T>()
-            InvocationExpressionSyntax invocation
-                when invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-                     memberAccess.Name.Identifier.Text == "Empty" => true,
+            // Array.Empty<T>() or Enumerable.Empty<T>()
+            IInvocationOperation { TargetMethod.Name: "Empty" } => true,
 
-            // Case 3: ImmutableArray<T>.Empty or similar static .Empty property
-            MemberAccessExpressionSyntax propertyAccess
-                when propertyAccess.Name.Identifier.Text == "Empty" => true,
+            // ImmutableArray<T>.Empty or similar static .Empty property
+            IPropertyReferenceOperation { Property.Name: "Empty", Instance: null } => true,
 
-            // Case 4: new T[0] or new T[] { }
-            ArrayCreationExpressionSyntax arrayCreation
-                when IsEmptyArray(arrayCreation) => true,
-
-            // Case 5: Enumerable.Empty<T>()
-            InvocationExpressionSyntax enumerableEmpty
-                when enumerableEmpty.Expression is MemberAccessExpressionSyntax enumAccess &&
-                     enumAccess.Expression is IdentifierNameSyntax { Identifier.Text: "Enumerable" } &&
-                     enumAccess.Name.Identifier.Text == "Empty" => true,
+            // new T[0] or new T[] { }
+            IArrayCreationOperation arrayCreation => IsEmptyArrayCreation(arrayCreation),
 
             _ => false
         };
     }
 
-    private static bool IsEmptyArray(ArrayCreationExpressionSyntax arrayCreation)
+    private static bool IsEmptyArrayCreation(IArrayCreationOperation arrayCreation)
     {
-        // Case: new T[] { } (empty initializer)
-        if (arrayCreation.Initializer is not null &&
-            arrayCreation.Initializer.Expressions.Count == 0)
+        // new T[] { } — empty initializer
+        if (arrayCreation.Initializer is { ElementValues.Length: 0 })
         {
             return true;
         }
 
-        // Case: new T[0] (zero-length array)
-        if (arrayCreation.Type?.RankSpecifiers.FirstOrDefault() is ArrayRankSpecifierSyntax rank &&
-            rank.Sizes.Count == 1 &&
-            rank.Sizes[0] is LiteralExpressionSyntax literal &&
-            literal.Token.ValueText == "0")
+        // new T[0] — zero-length array
+        if (arrayCreation.DimensionSizes.Length == 1
+            && arrayCreation.DimensionSizes[0] is ILiteralOperation
+               {
+                   ConstantValue: { HasValue: true, Value: 0 }
+               })
         {
             return true;
         }
