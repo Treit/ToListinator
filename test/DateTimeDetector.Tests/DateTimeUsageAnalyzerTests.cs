@@ -193,4 +193,73 @@ public class DateTimeUsageAnalyzerTests
         var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task DetectsFullyQualifiedDateTime()
+    {
+        var testCode = """
+            class C
+            {
+                void M()
+                {
+                    var now = {|DT001:System.DateTime|}.Now;
+                    var utcNow = {|DT001:System.DateTime|}.UtcNow;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DetectsFullyQualifiedDateTimeProperty()
+    {
+        var testCode = """
+            class C
+            {
+                {|DT001:System.DateTime|} StartTime { get; set; }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DetectsTopLevelFullyQualifiedDateTime()
+    {
+        var testCode = """
+            using System;
+
+            var localNow = {|DT001:System.DateTime|}.Now;
+            var utcNow = {|DT001:System.DateTime|}.UtcNow;
+
+            Console.WriteLine(localNow);
+            Console.WriteLine(utcNow);
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        test.TestState.OutputKind = Microsoft.CodeAnalysis.OutputKind.ConsoleApplication;
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeOffsetDateTimeProperty()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var dt = DateTimeOffset.Now.DateTime;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
 }
