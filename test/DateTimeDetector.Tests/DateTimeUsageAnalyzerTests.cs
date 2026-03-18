@@ -262,4 +262,118 @@ public class DateTimeUsageAnalyzerTests
         var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
         await test.RunAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeToday()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var today = DateTime.Today;
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeDaysInMonth()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var days = DateTime.DaysInMonth(2024, 2);
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeIsLeapYear()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var leap = DateTime.IsLeapYear(2024);
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeSpecifyKind()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var value = DateTime.SpecifyKind({|DT001:DateTime|}.Now, DateTimeKind.Utc);
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeFromBinary()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var value = DateTime.FromBinary(42L);
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DoesNotFlagDateTimeFromOADate()
+    {
+        var testCode = """
+            using System;
+
+            class C
+            {
+                void M()
+                {
+                    var value = DateTime.FromOADate(45291d);
+                }
+            }
+            """;
+
+        var test = TestHelper.CreateAnalyzerTest<DateTimeUsageAnalyzer>(testCode);
+        await test.RunAsync(CancellationToken.None);
+    }
 }
