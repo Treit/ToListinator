@@ -1,13 +1,22 @@
 # ToListinator
 [The tragedy of ToList](https://mtreit.com/programming,/.net/2024/07/30/ToList.html)
 
-As the blog post discusses, it is very common for C# programmers to waste resources by allocating lists unnecessarily. The canonical example is using `ToList().ForEeach(...)` solely because the `List<T>` type happens to have a `ForEach` method on it.
+This repository contains multiple Roslyn analyzer packages for C#:
+
+- **ToListinator** — detects unnecessary LINQ allocations (`ToList`, `ToArray`, etc.)
+- **DateTimeDetector** — flags `DateTime` usage where `DateTimeOffset` is preferred
+
+---
+
+## ToListinator
+
+As the [blog post](https://mtreit.com/programming,/.net/2024/07/30/ToList.html) discusses, it is very common for C# programmers to waste resources by allocating lists unnecessarily. The canonical example is using `ToList().ForEach(...)` solely because the `List<T>` type happens to have a `ForEach` method on it.
 
 ToListinator is a Roslyn code analyzer designed to track down and help eliminate these kinds of unnecessary ToList calls with extreme prejudice, among other things.
 
-## Available Analyzers
+### Available Rules
 
-### TL001 - ToList().ForEach Detection
+#### TL001 - ToList().ForEach Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects the pattern `collection.ToList().ForEach(action)` which unnecessarily allocates a List just to call the ForEach method. This pattern should be replaced with a regular foreach loop.
@@ -24,7 +33,7 @@ foreach (var item in items.Where(x => x.IsValid))
 }
 ```
 
-### TL002 - Identity Select Detection
+#### TL002 - Identity Select Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects useless `Select(x => x)` identity operations that perform no transformation and should be removed.
@@ -38,7 +47,7 @@ var result = items.Where(x => x.IsValid).Select(x => x).ToList();
 var result = items.Where(x => x.IsValid).ToList();
 ```
 
-### TL003 - ToList().Count Comparison Detection
+#### TL003 - ToList().Count Comparison Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects `ToList().Count` comparisons used for existence checks and suggests using `Any()` instead to avoid unnecessary allocation.
@@ -52,7 +61,7 @@ if (items.Where(x => x.IsValid).ToList().Count > 0)
 if (items.Where(x => x.IsValid).Any())
 ```
 
-### TL004 - Null Coalescing Foreach Detection
+#### TL004 - Null Coalescing Foreach Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects the pattern `foreach (var item in collection ?? new Collection())` which creates unnecessary allocations. Suggests using null checks instead.
@@ -72,7 +81,7 @@ if (items != null)
 }
 ```
 
-### TL005 - Static Property Expression Body Detection
+#### TL005 - Static Property Expression Body Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects static properties with expression bodies that may allocate new instances on every access. Suggests using getter-only properties with initializers instead.
@@ -86,7 +95,7 @@ public static string[] Parts => "a,b,c".Split(',');
 public static string[] Parts { get; } = "a,b,c".Split(',');
 ```
 
-### TL006 - Where().Count() Detection
+#### TL006 - Where().Count() Detection
 **Category:** Performance | **Severity:** Warning
 
 Detects `Where(predicate).Count()` patterns and suggests using `Count(predicate)` for better performance.
@@ -100,7 +109,7 @@ var count = items.Where(x => x.IsValid).Count();
 var count = items.Count(x => x.IsValid);
 ```
 
-### TL007 - Unnecessary ToList/ToArray in Method Chains
+#### TL007 - Unnecessary ToList/ToArray in Method Chains
 **Category:** Performance | **Severity:** Warning
 
 Detects unnecessary `ToList()` or `ToArray()` calls in the middle of method chains that create intermediate collections only to be immediately enumerated again.
@@ -114,7 +123,7 @@ var result = items.Where(x => x.IsValid).ToList().Select(x => x.Name).ToArray();
 var result = items.Where(x => x.IsValid).Select(x => x.Name).ToArray();
 ```
 
-### TL008 - Single Element Access After ToList/ToArray
+#### TL008 - Single Element Access After ToList/ToArray
 **Category:** Performance | **Severity:** Warning
 
 Detects `ToList()` or `ToArray()` calls followed by single element access methods (`First`, `Last`, `Single`, `ElementAt`, etc.) or `ToList()` followed by indexer access, which materializes the entire collection unnecessarily.
@@ -134,7 +143,7 @@ var first = numbers.First();
 var element = numbers.ElementAt(42);
 ```
 
-### TL010 - Unnecessary ToList on Materialized Collections
+#### TL010 - Unnecessary ToList on Materialized Collections
 **Category:** Performance | **Severity:** Warning
 
 Detects `ToList()` calls on collections that are already materialized (like `List<T>`, arrays, etc.) which creates unnecessary copies.
@@ -150,7 +159,7 @@ var filtered = names.ToList().Where(x => x.Length > 3).ToList();
 var filtered = names.Where(x => x.Length > 3).ToList();
 ```
 
-### TL011 - ToArray().Length Existence Check
+#### TL011 - ToArray().Length Existence Check
 **Category:** Performance | **Severity:** Warning
 
 Detects `.ToArray().Length` comparisons against 0 or 1 that are checking for existence or emptiness. The `ToArray()` call materializes the entire collection unnecessarily when `Any()` can short-circuit after the first element.
@@ -164,4 +173,36 @@ if (numbers.ToArray().Length > 0) { }
 
 // ✅ Good - short-circuits after the first element
 if (numbers.Any()) { }
+```
+
+---
+
+## DateTimeDetector
+
+DateTimeDetector flags usage of `System.DateTime` and suggests using `DateTimeOffset` instead. `DateTime` does not store time zone information, which can lead to subtle bugs when values cross time zone boundaries. `DateTimeOffset` preserves the offset from UTC and is generally preferred.
+
+The analyzer is context-aware: it only flags `DateTime` usages where switching to `DateTimeOffset` is actionable. Static members with no `DateTimeOffset` equivalent (e.g., `DateTime.DaysInMonth`, `DateTime.IsLeapYear`) are not flagged. The code fix validates that the rewrite produces compilable code before offering it.
+
+### Available Rules
+
+#### DT001 - Prefer DateTimeOffset over DateTime
+**Category:** Reliability | **Severity:** Warning
+
+Detects `DateTime` usage in type declarations, member access, and constructor calls where `DateTimeOffset` should be preferred.
+
+**Example:**
+```csharp
+// ⚠️ Flagged - DateTime doesn't preserve timezone information
+DateTime now = DateTime.Now;
+
+// ✅ Good - DateTimeOffset preserves the UTC offset
+DateTimeOffset now = DateTimeOffset.Now;
+```
+
+**Not flagged** (no `DateTimeOffset` equivalent):
+```csharp
+// These are DateTime-specific APIs with no actionable alternative
+var days = DateTime.DaysInMonth(2024, 2);
+var leap = DateTime.IsLeapYear(2024);
+var today = DateTime.Today;
 ```
