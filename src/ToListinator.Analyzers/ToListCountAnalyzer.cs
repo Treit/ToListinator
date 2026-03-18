@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
 
 namespace ToListinator.Analyzers;
@@ -34,125 +33,80 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            startContext.RegisterSyntaxNodeAction(
-                analysisContext => AnalyzeBinaryExpression(analysisContext, enumerableType),
-                SyntaxKind.GreaterThanExpression,
-                SyntaxKind.GreaterThanOrEqualExpression,
-                SyntaxKind.NotEqualsExpression,
-                SyntaxKind.LessThanExpression,
-                SyntaxKind.LessThanOrEqualExpression,
-                SyntaxKind.EqualsExpression);
+            startContext.RegisterOperationAction(
+                analysisContext => AnalyzeBinaryOperation(analysisContext, enumerableType),
+                OperationKind.Binary);
         });
     }
 
-    private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context, ITypeSymbol enumerableType)
+    private static void AnalyzeBinaryOperation(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
     {
-        var binaryExpression = (BinaryExpressionSyntax)context.Node;
+        var binary = (IBinaryOperation)context.Operation;
 
-        if (IsToListCountComparisonForAny(binaryExpression, context, enumerableType))
+        if (TryMatchToListCountComparison(binary.LeftOperand, binary.RightOperand, binary.OperatorKind, isCountOnLeft: true, enumerableType)
+            || TryMatchToListCountComparison(binary.RightOperand, binary.LeftOperand, binary.OperatorKind, isCountOnLeft: false, enumerableType))
         {
-            var diagnostic = Diagnostic.Create(Rule, binaryExpression.GetLocation());
-            context.ReportDiagnostic(diagnostic);
+            context.ReportDiagnostic(Diagnostic.Create(Rule, binary.Syntax.GetLocation()));
         }
     }
 
-    private static bool IsToListCountComparisonForAny(
-        BinaryExpressionSyntax binaryExpression,
-        SyntaxNodeAnalysisContext context,
-        ITypeSymbol enumerableType)
+    private static bool TryMatchToListCountComparison(
+        IOperation countSide,
+        IOperation constantSide,
+        BinaryOperatorKind operatorKind,
+        bool isCountOnLeft,
+        INamedTypeSymbol enumerableType)
     {
-        if (TryGetToListInvocation(binaryExpression.Left, out var leftInvocation) &&
-            IsZeroOrOneConstant(binaryExpression.Right) &&
-            IsLinqToListCall(leftInvocation!, context, enumerableType))
-        {
-            return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Right, isLeftOperand: true);
-        }
-
-        if (TryGetToListInvocation(binaryExpression.Right, out var rightInvocation) &&
-            IsZeroOrOneConstant(binaryExpression.Left) &&
-            IsLinqToListCall(rightInvocation!, context, enumerableType))
-        {
-            return IsValidCountComparisonPattern(binaryExpression.OperatorToken.Kind(), binaryExpression.Left, isLeftOperand: false);
-        }
-
-        return false;
-    }
-
-    private static bool TryGetToListInvocation(SyntaxNode expression, out InvocationExpressionSyntax? toListInvocation)
-    {
-        toListInvocation = null;
-
-        if (expression is MemberAccessExpressionSyntax
+        if (countSide is not IPropertyReferenceOperation
             {
-                Name.Identifier.ValueText: "Count",
-                Expression: InvocationExpressionSyntax invocation
-            } &&
-            invocation.Expression is MemberAccessExpressionSyntax
-            {
-                Name.Identifier.ValueText: "ToList",
-                Expression: not null
-            })
-        {
-            toListInvocation = invocation;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsLinqToListCall(
-        InvocationExpressionSyntax invocation,
-        SyntaxNodeAnalysisContext context,
-        ITypeSymbol enumerableType)
-    {
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
-        return symbolInfo.Symbol is IMethodSymbol methodSymbol &&
-               SymbolEqualityComparer.Default.Equals(methodSymbol.ContainingType, enumerableType);
-    }
-
-    private static bool IsZeroOrOneConstant(SyntaxNode expression)
-    {
-        return expression is LiteralExpressionSyntax literal &&
-               literal.Token.ValueText is "0" or "1";
-    }
-
-    private static bool IsValidCountComparisonPattern(SyntaxKind operatorKind, SyntaxNode constantNode, bool isLeftOperand)
-    {
-        if (constantNode is not LiteralExpressionSyntax literal)
+                Property.Name: "Count",
+                Instance: IInvocationOperation { TargetMethod: { Name: "ToList" } toListMethod }
+            }
+            || !SymbolEqualityComparer.Default.Equals(toListMethod.ContainingType, enumerableType))
         {
             return false;
         }
 
-        var value = literal.Token.ValueText;
+        if (constantSide is not ILiteralOperation { ConstantValue: { HasValue: true, Value: int constantValue } }
+            || constantValue is not (0 or 1))
+        {
+            return false;
+        }
 
-        // For left operand (collection.ToList().Count <op> constant):
-        if (isLeftOperand)
+        return IsValidCountComparisonPattern(operatorKind, constantValue, isCountOnLeft);
+    }
+
+    private static bool IsValidCountComparisonPattern(
+        BinaryOperatorKind operatorKind,
+        int constantValue,
+        bool isCountOnLeft)
+    {
+        if (isCountOnLeft)
         {
             return operatorKind switch
             {
-                // Existence patterns: > 0, >= 1, != 0 all mean "has any elements"
-                SyntaxKind.GreaterThanToken when value == "0" => true,
-                SyntaxKind.GreaterThanEqualsToken when value == "1" => true,
-                SyntaxKind.ExclamationEqualsToken when value == "0" => true,
-                // Non-existence patterns: == 0, <= 0, < 1 all mean "has no elements"
-                SyntaxKind.EqualsEqualsToken when value == "0" => true,
-                SyntaxKind.LessThanEqualsToken when value == "0" => true,
-                SyntaxKind.LessThanToken when value == "1" => true,
+                // Existence patterns: > 0, >= 1, != 0
+                BinaryOperatorKind.GreaterThan when constantValue == 0 => true,
+                BinaryOperatorKind.GreaterThanOrEqual when constantValue == 1 => true,
+                BinaryOperatorKind.NotEquals when constantValue == 0 => true,
+                // Non-existence patterns: == 0, <= 0, < 1
+                BinaryOperatorKind.Equals when constantValue == 0 => true,
+                BinaryOperatorKind.LessThanOrEqual when constantValue == 0 => true,
+                BinaryOperatorKind.LessThan when constantValue == 1 => true,
                 _ => false
             };
         }
 
-        // For right operand (constant <op> collection.ToList().Count):
         return operatorKind switch
         {
-            // Existence patterns: 0 <, 1 <=, 0 != all mean "has any elements"
-            SyntaxKind.LessThanToken when value == "0" => true,
-            SyntaxKind.LessThanEqualsToken when value == "1" => true,
-            SyntaxKind.ExclamationEqualsToken when value == "0" => true,
-            // Non-existence patterns: 0 ==, 0 >=, 1 > all mean "has no elements"
-            SyntaxKind.EqualsEqualsToken when value == "0" => true,
-            SyntaxKind.GreaterThanEqualsToken when value == "0" => true,
-            SyntaxKind.GreaterThanToken when value == "1" => true,
+            // Existence patterns: 0 <, 1 <=, 0 !=
+            BinaryOperatorKind.LessThan when constantValue == 0 => true,
+            BinaryOperatorKind.LessThanOrEqual when constantValue == 1 => true,
+            BinaryOperatorKind.NotEquals when constantValue == 0 => true,
+            // Non-existence patterns: 0 ==, 0 >=, 1 >
+            BinaryOperatorKind.Equals when constantValue == 0 => true,
+            BinaryOperatorKind.GreaterThanOrEqual when constantValue == 0 => true,
+            BinaryOperatorKind.GreaterThan when constantValue == 1 => true,
             _ => false
         };
     }
