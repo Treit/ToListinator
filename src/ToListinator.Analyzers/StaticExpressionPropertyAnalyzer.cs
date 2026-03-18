@@ -2,9 +2,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
 using System.Linq;
-using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -27,99 +27,101 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzePropertyDeclaration, SyntaxKind.PropertyDeclaration);
+        context.RegisterSyntaxNodeAction(AnalyzeProperty, SyntaxKind.PropertyDeclaration);
     }
 
-    private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeProperty(SyntaxNodeAnalysisContext context)
     {
-        var propertyDeclaration = (PropertyDeclarationSyntax)context.Node;
+        var propertySyntax = (PropertyDeclarationSyntax)context.Node;
 
-        // Must be static
-        if (!propertyDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword))
+        if (!propertySyntax.Modifiers.Any(SyntaxKind.StaticKeyword)
+            || propertySyntax.ExpressionBody is null)
         {
             return;
         }
 
-        // Must have expression body (=>)
-        if (propertyDeclaration.ExpressionBody == null)
-        {
-            return;
-        }
+        var operation = context.SemanticModel.GetOperation(
+            propertySyntax.ExpressionBody.Expression, context.CancellationToken);
 
-        // Analyze the expression for potentially allocating operations
-        var expression = propertyDeclaration.ExpressionBody.Expression;
-        if (ContainsPotentialAllocation(expression, context.SemanticModel))
+        if (operation is not null && ContainsPotentialAllocation(operation))
         {
-            var diagnostic = Diagnostic.Create(
+            context.ReportDiagnostic(Diagnostic.Create(
                 Rule,
-                propertyDeclaration.Identifier.GetLocation(),
-                propertyDeclaration.Identifier.ValueText);
-
-            context.ReportDiagnostic(diagnostic);
+                propertySyntax.Identifier.GetLocation(),
+                propertySyntax.Identifier.ValueText));
         }
     }
 
-    private static bool ContainsPotentialAllocation(ExpressionSyntax expression, SemanticModel semanticModel)
+    private static bool ContainsPotentialAllocation(IOperation operation)
     {
-        return expression switch
+        return operation switch
         {
-            // Object creation expressions: new Foo(), new[] { ... }, new List<T> { ... }
-            ObjectCreationExpressionSyntax => true,
-            ImplicitObjectCreationExpressionSyntax => true,
-            ArrayCreationExpressionSyntax => true,
-            ImplicitArrayCreationExpressionSyntax => true,
-            CollectionExpressionSyntax collectionExpr => !SemanticAnalysisHelper.IsSpanCollectionExpression(collectionExpr, semanticModel),
+            // Object/array creation
+            IObjectCreationOperation => true,
+            ITypeParameterObjectCreationOperation => true,
+            IArrayCreationOperation => true,
 
-            // Method invocations that may allocate
-            InvocationExpressionSyntax invocation => IsAllocatingMethodCall(invocation, semanticModel),
+            // Collection expressions (unless targeting Span<T>/ReadOnlySpan<T>)
+            ICollectionExpressionOperation collExpr => !IsSpanType(collExpr.Type),
 
-            // Assignment expressions - check the right side (e.g., _ = new HashSet())
-            // Exception: null-coalescing assignment (??=) is lazy initialization and should not be flagged
-            AssignmentExpressionSyntax assignment =>
-                !assignment.IsKind(SyntaxKind.CoalesceAssignmentExpression) &&
-                ContainsPotentialAllocation(assignment.Right, semanticModel),
+            // Allocating method calls
+            IInvocationOperation invocation => IsAllocatingMethodCall(invocation),
 
-            // Member access expressions - check the expression being accessed
-            MemberAccessExpressionSyntax memberAccess => ContainsPotentialAllocation(memberAccess.Expression, semanticModel),
+            // Assignments — check the value (but skip null-coalescing assignment ??= which is lazy init)
+            ISimpleAssignmentOperation assignment => ContainsPotentialAllocation(assignment.Value),
 
-            // Conditional expressions - check both branches
-            // Exception: lazy initialization with assignment like "field == null ? field = new Obj() : field" should not be flagged
-            ConditionalExpressionSyntax conditional =>
+            // Member access — check the instance expression
+            IPropertyReferenceOperation propRef =>
+                propRef.Instance is not null && ContainsPotentialAllocation(propRef.Instance),
+
+            // Conditional (ternary) — check both branches unless it's lazy initialization
+            IConditionalOperation conditional =>
                 !IsLazyInitializationWithAssignment(conditional) &&
-                (ContainsPotentialAllocation(conditional.WhenTrue, semanticModel) ||
-                ContainsPotentialAllocation(conditional.WhenFalse, semanticModel)),
+                (ContainsPotentialAllocation(conditional.WhenTrue) ||
+                 (conditional.WhenFalse is not null && ContainsPotentialAllocation(conditional.WhenFalse))),
 
-            // Binary expressions - check both operands (for string concatenation, null coalescing, etc.)
-            BinaryExpressionSyntax binary =>
-                (binary.IsKind(SyntaxKind.AddExpression) && IsStringConcatenation(binary, semanticModel)) ||
-                binary.IsKind(SyntaxKind.CoalesceExpression) && ContainsPotentialAllocation(binary.Left, semanticModel) ||
-                ContainsPotentialAllocation(binary.Left, semanticModel) ||
-                ContainsPotentialAllocation(binary.Right, semanticModel),
+            // Binary operations — check for string concatenation and recurse
+            IBinaryOperation binary =>
+                IsStringConcatenation(binary) ||
+                ContainsPotentialAllocation(binary.LeftOperand) ||
+                ContainsPotentialAllocation(binary.RightOperand),
 
-            // Parenthesized expressions - check the inner expression
-            ParenthesizedExpressionSyntax parenthesized =>
-                ContainsPotentialAllocation(parenthesized.Expression, semanticModel),
+            // Null coalescing — check both sides
+            ICoalesceOperation coalesce =>
+                ContainsPotentialAllocation(coalesce.Value) ||
+                ContainsPotentialAllocation(coalesce.WhenNull),
 
-            // Cast expressions - check the expression being cast
-            CastExpressionSyntax cast =>
-                ContainsPotentialAllocation(cast.Expression, semanticModel),
+            // Conversions (casts) — check the operand
+            IConversionOperation conv => ContainsPotentialAllocation(conv.Operand),
 
-            // Literals, identifiers, and other simple expressions don't allocate
+            // Return statements — check the returned value
+            IReturnOperation ret =>
+                ret.ReturnedValue is not null && ContainsPotentialAllocation(ret.ReturnedValue),
+
+            // Block — check all statements
+            IBlockOperation block => block.Operations.Any(ContainsPotentialAllocation),
+
+            // Expression statements — check the expression
+            IExpressionStatementOperation expr => ContainsPotentialAllocation(expr.Operation),
+
+            // Parenthesized — check inner
+            IParenthesizedOperation paren => ContainsPotentialAllocation(paren.Operand),
+
+            // Literals, identifiers, field references, etc. don't allocate
             _ => false
         };
     }
 
-    private static bool IsAllocatingMethodCall(InvocationExpressionSyntax invocation, SemanticModel semanticModel)
+    private static bool IsAllocatingMethodCall(IInvocationOperation invocation)
     {
-        var symbolInfo = semanticModel.GetSymbolInfo(invocation);
-        if (symbolInfo.Symbol is not IMethodSymbol method)
-        {
-            return false;
-        }
+        var method = invocation.TargetMethod;
 
         // Environment method calls are likely allocating
-        if (method.ContainingType.Name == "Environment" &&
-            method.ContainingType.ContainingNamespace.ToDisplayString() == "System")
+        if (method.ContainingType is
+            {
+                Name: "Environment",
+                ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true }
+            })
         {
             return true;
         }
@@ -132,8 +134,11 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
         }
 
         // LINQ methods typically allocate
-        if (method.ContainingType.Name == "Enumerable" &&
-            method.ContainingType.ContainingNamespace.ToDisplayString() == "System.Linq")
+        if (method.ContainingType is
+            {
+                Name: "Enumerable",
+                ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } }
+            })
         {
             return true;
         }
@@ -150,110 +155,81 @@ public class StaticExpressionPropertyAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static bool IsStringConcatenation(BinaryExpressionSyntax binary, SemanticModel semanticModel)
+    private static bool IsStringConcatenation(IBinaryOperation binary)
     {
-        var leftType = semanticModel.GetTypeInfo(binary.Left).Type;
-        var rightType = semanticModel.GetTypeInfo(binary.Right).Type;
-
-        return leftType?.SpecialType == SpecialType.System_String ||
-               rightType?.SpecialType == SpecialType.System_String;
+        return binary.OperatorKind == BinaryOperatorKind.Add &&
+               (binary.LeftOperand.Type?.SpecialType == SpecialType.System_String ||
+                binary.RightOperand.Type?.SpecialType == SpecialType.System_String);
     }
 
-    private static bool IsLazyInitializationWithAssignment(ConditionalExpressionSyntax conditional)
+    private static bool IsSpanType(ITypeSymbol? type)
     {
-        // Check if this is a lazy initialization pattern with assignment like:
-        // field == null ? field = new Obj() : field
-        // field is null ? field = new Obj() : field
+        return type is INamedTypeSymbol
+        {
+            Arity: 1,
+            ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true },
+            Name: "Span" or "ReadOnlySpan"
+        };
+    }
 
-        // We need to detect patterns where:
-        // 1. The condition checks if a field is null
-        // 2. One branch assigns to that same field
-        // 3. The other branch returns that same field
-
-        var checkedFieldName = GetFieldNameFromNullCheck(conditional.Condition);
-        if (checkedFieldName == null)
+    private static bool IsLazyInitializationWithAssignment(IConditionalOperation conditional)
+    {
+        if (conditional.WhenFalse is null)
         {
             return false;
         }
 
-        // Check if one branch is an assignment to the checked field and the other returns the field
-        var (assignmentBranch, returnBranch) = GetAssignmentAndReturnBranches(conditional);
+        var whenTrue = UnwrapImplicitConversions(conditional.WhenTrue);
+        var whenFalse = UnwrapImplicitConversions(conditional.WhenFalse);
 
-        if (assignmentBranch == null || returnBranch == null)
+        // Check if one branch is an assignment and the other returns the same symbol
+        if (whenTrue is ISimpleAssignmentOperation trueAssignment)
         {
-            return false;
+            var assignedSymbol = GetReferencedSymbol(trueAssignment.Target);
+            if (assignedSymbol is not null && IsSymbolReference(whenFalse, assignedSymbol))
+            {
+                return true;
+            }
         }
 
-        // The assignment should be to the same field we're checking
-        var assignedFieldName = GetFieldNameFromAssignment(assignmentBranch);
-        if (assignedFieldName != checkedFieldName)
+        if (whenFalse is ISimpleAssignmentOperation falseAssignment)
         {
-            return false;
+            var assignedSymbol = GetReferencedSymbol(falseAssignment.Target);
+            if (assignedSymbol is not null && IsSymbolReference(whenTrue, assignedSymbol))
+            {
+                return true;
+            }
         }
 
-        // The return branch should return the same field
-        var returnedFieldName = GetFieldNameFromExpression(returnBranch);
-        return returnedFieldName == checkedFieldName;
+        return false;
     }
 
-    private static (ExpressionSyntax? assignment, ExpressionSyntax? returnExpr) GetAssignmentAndReturnBranches(ConditionalExpressionSyntax conditional)
+    private static IOperation UnwrapImplicitConversions(IOperation operation)
     {
-        // Check WhenTrue for assignment, WhenFalse for return
-        if (conditional.WhenTrue is AssignmentExpressionSyntax assignmentTrue &&
-            conditional.WhenFalse is IdentifierNameSyntax)
+        // Roslyn may wrap a value in one or more implicit conversions
+        // (e.g. covariance, interface adaptation). Peel them all off.
+        while (operation is IConversionOperation { IsImplicit: true } conversion)
         {
-            return (assignmentTrue, conditional.WhenFalse);
+            operation = conversion.Operand;
         }
 
-        // Check WhenFalse for assignment, WhenTrue for return
-        if (conditional.WhenFalse is AssignmentExpressionSyntax assignmentFalse &&
-            conditional.WhenTrue is IdentifierNameSyntax)
-        {
-            return (assignmentFalse, conditional.WhenTrue);
-        }
-
-        return (null, null);
+        return operation;
     }
 
-    private static string? GetFieldNameFromNullCheck(ExpressionSyntax condition)
+    private static ISymbol? GetReferencedSymbol(IOperation operation)
     {
-        return condition switch
+        var unwrapped = UnwrapImplicitConversions(operation);
+        return unwrapped switch
         {
-            // Pattern: field == null
-            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.EqualsExpression) =>
-                binary.Left is IdentifierNameSyntax leftId && binary.Right.IsKind(SyntaxKind.NullLiteralExpression) ? leftId.Identifier.ValueText :
-                binary.Right is IdentifierNameSyntax rightId && binary.Left.IsKind(SyntaxKind.NullLiteralExpression) ? rightId.Identifier.ValueText : null,
-
-            // Pattern: field != null
-            BinaryExpressionSyntax binary2 when binary2.IsKind(SyntaxKind.NotEqualsExpression) =>
-                binary2.Left is IdentifierNameSyntax leftId2 && binary2.Right.IsKind(SyntaxKind.NullLiteralExpression) ? leftId2.Identifier.ValueText :
-                binary2.Right is IdentifierNameSyntax rightId2 && binary2.Left.IsKind(SyntaxKind.NullLiteralExpression) ? rightId2.Identifier.ValueText : null,
-
-            // Pattern: field is null
-            IsPatternExpressionSyntax isPattern when isPattern.Pattern is ConstantPatternSyntax constantPattern &&
-                constantPattern.Expression.IsKind(SyntaxKind.NullLiteralExpression) &&
-                isPattern.Expression is IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
-
+            ILocalReferenceOperation local => local.Local,
+            IFieldReferenceOperation field => field.Field,
             _ => null
         };
     }
 
-    private static string? GetFieldNameFromAssignment(ExpressionSyntax assignment)
+    private static bool IsSymbolReference(IOperation operation, ISymbol symbol)
     {
-        if (assignment is AssignmentExpressionSyntax assignmentExpr &&
-            assignmentExpr.Left is IdentifierNameSyntax identifier)
-        {
-            return identifier.Identifier.ValueText;
-        }
-        return null;
-    }
-
-    private static string? GetFieldNameFromExpression(ExpressionSyntax expression)
-    {
-        if (expression is IdentifierNameSyntax identifier)
-        {
-            return identifier.Identifier.ValueText;
-        }
-        return null;
+        return GetReferencedSymbol(operation) is { } refSymbol &&
+               SymbolEqualityComparer.Default.Equals(refSymbol, symbol);
     }
 }
