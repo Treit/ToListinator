@@ -36,13 +36,22 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
+            var dateTimeOffsetType = startContext.Compilation.GetTypeByMetadataName("System.DateTimeOffset");
+            if (dateTimeOffsetType is null)
+            {
+                return;
+            }
+
             startContext.RegisterSyntaxNodeAction(
-                nodeContext => AnalyzeIdentifier(nodeContext, dateTimeType),
+                nodeContext => AnalyzeIdentifier(nodeContext, dateTimeType, dateTimeOffsetType),
                 SyntaxKind.IdentifierName);
         });
     }
 
-    private static void AnalyzeIdentifier(SyntaxNodeAnalysisContext context, INamedTypeSymbol dateTimeType)
+    private static void AnalyzeIdentifier(
+        SyntaxNodeAnalysisContext context,
+        INamedTypeSymbol dateTimeType,
+        INamedTypeSymbol dateTimeOffsetType)
     {
         var identifierName = (IdentifierNameSyntax)context.Node;
 
@@ -97,7 +106,48 @@ public class DateTimeUsageAnalyzer : DiagnosticAnalyzer
         if (typeSymbol is not null
             && SymbolEqualityComparer.Default.Equals(typeSymbol, dateTimeType))
         {
+            // Don't flag static member access (DateTime.Foo) when DateTimeOffset has no equivalent member
+            if (IsUnfixableStaticMemberAccess(identifierName, dateTimeOffsetType))
+            {
+                return;
+            }
+
             context.ReportDiagnostic(Diagnostic.Create(Rule, nodeToReport.GetLocation()));
         }
+    }
+
+    private static bool IsUnfixableStaticMemberAccess(
+        IdentifierNameSyntax dateTimeIdentifier,
+        INamedTypeSymbol dateTimeOffsetType)
+    {
+        // DateTime is the left side of DateTime.Something (expression position)
+        if (dateTimeIdentifier.Parent is MemberAccessExpressionSyntax memberAccess
+            && memberAccess.Expression == dateTimeIdentifier)
+        {
+            var memberName = memberAccess.Name.Identifier.ValueText;
+            return !dateTimeOffsetType.GetMembers(memberName).Any();
+        }
+
+        // System.DateTime is the left side of System.DateTime.Something (fully-qualified expression position)
+        if (dateTimeIdentifier.Parent is MemberAccessExpressionSyntax qualifiedDateTimeAccess
+            && qualifiedDateTimeAccess.Name == dateTimeIdentifier
+            && qualifiedDateTimeAccess.Parent is MemberAccessExpressionSyntax outerAccess
+            && outerAccess.Expression == qualifiedDateTimeAccess)
+        {
+            var memberName = outerAccess.Name.Identifier.ValueText;
+            return !dateTimeOffsetType.GetMembers(memberName).Any();
+        }
+
+        // System.DateTime in type position (QualifiedNameSyntax) used as expression for member access
+        if (dateTimeIdentifier.Parent is QualifiedNameSyntax qualifiedName
+            && qualifiedName.Right == dateTimeIdentifier
+            && qualifiedName.Parent is MemberAccessExpressionSyntax qualifiedMemberAccess
+            && qualifiedMemberAccess.Expression == qualifiedName)
+        {
+            var memberName = qualifiedMemberAccess.Name.Identifier.ValueText;
+            return !dateTimeOffsetType.GetMembers(memberName).Any();
+        }
+
+        return false;
     }
 }
