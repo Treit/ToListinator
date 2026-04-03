@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -62,7 +63,7 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var innerInvocation = GetReceiverInvocation(invocation);
+        var innerInvocation = MethodChainHelper.GetReceiverInvocation(invocation);
 
         if (innerInvocation is null
             || innerInvocation.TargetMethod.Name is not ("ToList" or "ToArray")
@@ -76,42 +77,6 @@ public class SingleElementAccessAnalyzer : DiagnosticAnalyzer
 
         context.ReportDiagnostic(
             Diagnostic.Create(Rule, invocation.Syntax.GetLocation(), properties.ToImmutable()));
-    }
-
-    private static IInvocationOperation? GetReceiverInvocation(IInvocationOperation invocation)
-    {
-        if (invocation.Instance is IInvocationOperation instanceInvocation)
-        {
-            return instanceInvocation;
-        }
-
-        // For extension methods called with dot syntax (e.g., items.ToList().First()),
-        // the receiver is passed as the first argument, potentially wrapped in a conversion.
-        // We exclude the static form (Enumerable.First(items.ToList())) by verifying
-        // the syntax receiver is an invocation, not a type name.
-        if (invocation.TargetMethod.IsExtensionMethod
-            && invocation.Arguments.Length > 0
-            && invocation.Syntax is InvocationExpressionSyntax
-               {
-                   Expression: MemberAccessExpressionSyntax
-                   {
-                       Expression: InvocationExpressionSyntax
-                   }
-               })
-        {
-            IOperation argValue = invocation.Arguments[0].Value;
-
-            // Roslyn may wrap the receiver in one or more implicit conversions
-            // (e.g. covariance, interface adaptation). Peel them all off.
-            while (argValue is IConversionOperation { IsImplicit: true } conversion)
-            {
-                argValue = conversion.Operand;
-            }
-
-            return argValue as IInvocationOperation;
-        }
-
-        return null;
     }
 
     private static void AnalyzePropertyReference(OperationAnalysisContext context, INamedTypeSymbol enumerableType)
