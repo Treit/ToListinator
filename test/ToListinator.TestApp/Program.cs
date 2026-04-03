@@ -12,6 +12,12 @@ class Program
 
         var numbers = new[] { 1, 2, 3, 4, 5, 6 };
 
+        var resourceList = new List<string> { "Resource1", "Resource2", "Resource3" };
+
+        // Triggers TL002 - Remove unnecessary Select call
+        // Triggers TL007 - unnecessary ToList() in method chain
+        string resourceListString = string.Join("\n", resourceList.Select(x => x).ToList());
+
         // This should trigger TL007 - unnecessary ToList() in method chain
         var items = numbers.ToList().Select(x => x * 2).ToList();
 

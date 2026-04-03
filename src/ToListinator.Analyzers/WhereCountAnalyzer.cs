@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -77,14 +78,14 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
         INamedTypeSymbol enumerableType)
     {
         var whereChain = new List<IInvocationOperation>();
-        var current = GetReceiverInvocation(startInvocation);
+        var current = MethodChainHelper.GetReceiverInvocation(startInvocation);
 
         while (current is not null
                && current.TargetMethod.Name is "Where"
                && SymbolEqualityComparer.Default.Equals(current.TargetMethod.ContainingType, enumerableType))
         {
             whereChain.Add(current);
-            current = GetReceiverInvocation(current);
+            current = MethodChainHelper.GetReceiverInvocation(current);
         }
 
         return whereChain;
@@ -102,38 +103,6 @@ public class WhereCountAnalyzer : DiagnosticAnalyzer
         }
 
         return IsValidPredicate(predicateExpression);
-    }
-
-    private static IInvocationOperation? GetReceiverInvocation(IInvocationOperation invocation)
-    {
-        if (invocation.Instance is IInvocationOperation instanceInvocation)
-        {
-            return instanceInvocation;
-        }
-
-        if (invocation.TargetMethod.IsExtensionMethod
-            && invocation.Arguments.Length > 0
-            && invocation.Syntax is InvocationExpressionSyntax
-               {
-                   Expression: MemberAccessExpressionSyntax
-                   {
-                       Expression: InvocationExpressionSyntax
-                   }
-               })
-        {
-            IOperation argValue = invocation.Arguments[0].Value;
-
-            // Roslyn may wrap the receiver in one or more implicit conversions
-            // (e.g. covariance, interface adaptation). Peel them all off.
-            while (argValue is IConversionOperation { IsImplicit: true } conversion)
-            {
-                argValue = conversion.Operand;
-            }
-
-            return argValue as IInvocationOperation;
-        }
-
-        return null;
     }
 
     private static bool IsValidPredicate(ExpressionSyntax expression)
