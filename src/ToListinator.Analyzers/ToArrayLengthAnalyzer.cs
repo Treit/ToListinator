@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -43,67 +44,14 @@ public class ToArrayLengthAnalyzer : DiagnosticAnalyzer
     {
         var binary = (IBinaryOperation)context.Operation;
 
-        if (TryMatchToArrayLengthComparison(binary.LeftOperand, binary.RightOperand, binary.OperatorKind, isLengthOnLeft: true, enumerableType)
-            || TryMatchToArrayLengthComparison(binary.RightOperand, binary.LeftOperand, binary.OperatorKind, isLengthOnLeft: false, enumerableType))
+        if (ConversionComparisonHelper.TryMatchConversionPropertyComparison(
+                binary.LeftOperand, binary.RightOperand, binary.OperatorKind,
+                isPropertyOnLeft: true, "Length", "ToArray", enumerableType)
+            || ConversionComparisonHelper.TryMatchConversionPropertyComparison(
+                binary.RightOperand, binary.LeftOperand, binary.OperatorKind,
+                isPropertyOnLeft: false, "Length", "ToArray", enumerableType))
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, binary.Syntax.GetLocation()));
         }
-    }
-
-    private static bool TryMatchToArrayLengthComparison(
-        IOperation lengthSide,
-        IOperation constantSide,
-        BinaryOperatorKind operatorKind,
-        bool isLengthOnLeft,
-        INamedTypeSymbol enumerableType)
-    {
-        if (lengthSide is not IPropertyReferenceOperation
-            {
-                Property.Name: "Length",
-                Instance: IInvocationOperation { TargetMethod: { Name: "ToArray" } toArrayMethod }
-            }
-            || !SymbolEqualityComparer.Default.Equals(toArrayMethod.ContainingType, enumerableType))
-        {
-            return false;
-        }
-
-        if (constantSide is not ILiteralOperation { ConstantValue: { HasValue: true, Value: int constantValue } }
-            || constantValue is not (0 or 1))
-        {
-            return false;
-        }
-
-        return IsValidLengthComparisonPattern(operatorKind, constantValue, isLengthOnLeft);
-    }
-
-    private static bool IsValidLengthComparisonPattern(
-        BinaryOperatorKind operatorKind,
-        int constantValue,
-        bool isLengthOnLeft)
-    {
-        if (isLengthOnLeft)
-        {
-            return operatorKind switch
-            {
-                BinaryOperatorKind.GreaterThan when constantValue == 0 => true,
-                BinaryOperatorKind.GreaterThanOrEqual when constantValue == 1 => true,
-                BinaryOperatorKind.NotEquals when constantValue == 0 => true,
-                BinaryOperatorKind.Equals when constantValue == 0 => true,
-                BinaryOperatorKind.LessThanOrEqual when constantValue == 0 => true,
-                BinaryOperatorKind.LessThan when constantValue == 1 => true,
-                _ => false
-            };
-        }
-
-        return operatorKind switch
-        {
-            BinaryOperatorKind.LessThan when constantValue == 0 => true,
-            BinaryOperatorKind.LessThanOrEqual when constantValue == 1 => true,
-            BinaryOperatorKind.NotEquals when constantValue == 0 => true,
-            BinaryOperatorKind.Equals when constantValue == 0 => true,
-            BinaryOperatorKind.GreaterThanOrEqual when constantValue == 0 => true,
-            BinaryOperatorKind.GreaterThan when constantValue == 1 => true,
-            _ => false
-        };
     }
 }
