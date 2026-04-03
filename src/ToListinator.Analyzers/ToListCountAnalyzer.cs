@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
+using ToListinator.Analyzers.Utils;
 
 namespace ToListinator.Analyzers;
 
@@ -43,71 +44,14 @@ public class ToListCountAnalyzer : DiagnosticAnalyzer
     {
         var binary = (IBinaryOperation)context.Operation;
 
-        if (TryMatchToListCountComparison(binary.LeftOperand, binary.RightOperand, binary.OperatorKind, isCountOnLeft: true, enumerableType)
-            || TryMatchToListCountComparison(binary.RightOperand, binary.LeftOperand, binary.OperatorKind, isCountOnLeft: false, enumerableType))
+        if (ConversionComparisonHelper.TryMatchConversionPropertyComparison(
+                binary.LeftOperand, binary.RightOperand, binary.OperatorKind,
+                isPropertyOnLeft: true, "Count", "ToList", enumerableType)
+            || ConversionComparisonHelper.TryMatchConversionPropertyComparison(
+                binary.RightOperand, binary.LeftOperand, binary.OperatorKind,
+                isPropertyOnLeft: false, "Count", "ToList", enumerableType))
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, binary.Syntax.GetLocation()));
         }
-    }
-
-    private static bool TryMatchToListCountComparison(
-        IOperation countSide,
-        IOperation constantSide,
-        BinaryOperatorKind operatorKind,
-        bool isCountOnLeft,
-        INamedTypeSymbol enumerableType)
-    {
-        if (countSide is not IPropertyReferenceOperation
-            {
-                Property.Name: "Count",
-                Instance: IInvocationOperation { TargetMethod: { Name: "ToList" } toListMethod }
-            }
-            || !SymbolEqualityComparer.Default.Equals(toListMethod.ContainingType, enumerableType))
-        {
-            return false;
-        }
-
-        if (constantSide is not ILiteralOperation { ConstantValue: { HasValue: true, Value: int constantValue } }
-            || constantValue is not (0 or 1))
-        {
-            return false;
-        }
-
-        return IsValidCountComparisonPattern(operatorKind, constantValue, isCountOnLeft);
-    }
-
-    private static bool IsValidCountComparisonPattern(
-        BinaryOperatorKind operatorKind,
-        int constantValue,
-        bool isCountOnLeft)
-    {
-        if (isCountOnLeft)
-        {
-            return operatorKind switch
-            {
-                // Existence patterns: > 0, >= 1, != 0
-                BinaryOperatorKind.GreaterThan when constantValue == 0 => true,
-                BinaryOperatorKind.GreaterThanOrEqual when constantValue == 1 => true,
-                BinaryOperatorKind.NotEquals when constantValue == 0 => true,
-                // Non-existence patterns: == 0, <= 0, < 1
-                BinaryOperatorKind.Equals when constantValue == 0 => true,
-                BinaryOperatorKind.LessThanOrEqual when constantValue == 0 => true,
-                BinaryOperatorKind.LessThan when constantValue == 1 => true,
-                _ => false
-            };
-        }
-
-        return operatorKind switch
-        {
-            // Existence patterns: 0 <, 1 <=, 0 !=
-            BinaryOperatorKind.LessThan when constantValue == 0 => true,
-            BinaryOperatorKind.LessThanOrEqual when constantValue == 1 => true,
-            BinaryOperatorKind.NotEquals when constantValue == 0 => true,
-            // Non-existence patterns: 0 ==, 0 >=, 1 >
-            BinaryOperatorKind.Equals when constantValue == 0 => true,
-            BinaryOperatorKind.GreaterThanOrEqual when constantValue == 0 => true,
-            BinaryOperatorKind.GreaterThan when constantValue == 1 => true,
-            _ => false
-        };
     }
 }
