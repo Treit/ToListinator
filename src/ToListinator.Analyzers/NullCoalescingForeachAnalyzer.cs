@@ -24,10 +24,18 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterOperationAction(AnalyzeForEachLoop, OperationKind.Loop);
+        context.RegisterCompilationStartAction(startContext =>
+        {
+            var enumerableType = startContext.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            var arrayType = startContext.Compilation.GetTypeByMetadataName("System.Array");
+
+            startContext.RegisterOperationAction(
+                operationContext => AnalyzeForEachLoop(operationContext, enumerableType, arrayType),
+                OperationKind.Loop);
+        });
     }
 
-    private static void AnalyzeForEachLoop(OperationAnalysisContext context)
+    private static void AnalyzeForEachLoop(OperationAnalysisContext context, INamedTypeSymbol? enumerableType, INamedTypeSymbol? arrayType)
     {
         if (context.Operation is not IForEachLoopOperation forEachLoop)
         {
@@ -58,7 +66,7 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
             fallback = fallbackConversion.Operand;
         }
 
-        if (!IsEmptyCollectionOperation(fallback))
+        if (!IsEmptyCollectionOperation(fallback, enumerableType, arrayType))
         {
             return;
         }
@@ -66,18 +74,17 @@ public class NullCoalescingForeachAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(Rule, coalesce.Syntax.GetLocation()));
     }
 
-    private static bool IsEmptyCollectionOperation(IOperation operation)
+    private static bool IsEmptyCollectionOperation(IOperation operation, INamedTypeSymbol? enumerableType, INamedTypeSymbol? arrayType)
     {
         return operation switch
         {
-            // new List<T>(), new HashSet<T>(), etc. with no arguments
             IObjectCreationOperation { Arguments.Length: 0 } => true,
 
-            // Array.Empty<T>() or Enumerable.Empty<T>()
-            IInvocationOperation { TargetMethod.Name: "Empty" } => true,
+            IInvocationOperation { TargetMethod: { Name: "Empty" } method } =>
+                (enumerableType is not null && SymbolEqualityComparer.Default.Equals(method.ContainingType, enumerableType))
+                || (arrayType is not null && SymbolEqualityComparer.Default.Equals(method.ContainingType, arrayType)),
 
-            // ImmutableArray<T>.Empty or similar static .Empty property
-            IPropertyReferenceOperation { Property.Name: "Empty", Instance: null } => true,
+            IPropertyReferenceOperation { Property: { Name: "Empty", IsStatic: true } } => true,
 
             // new T[0] or new T[] { }
             IArrayCreationOperation arrayCreation => IsEmptyArrayCreation(arrayCreation),
