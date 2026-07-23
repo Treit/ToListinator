@@ -1,5 +1,6 @@
-using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -267,6 +268,43 @@ public static class MethodChainHelper
             {
                 break;
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the receiver invocation of a method call in IOperation form, handling both
+    /// instance calls and extension methods called with dot syntax. Excludes the static form
+    /// (e.g., Enumerable.First(items.ToList())) by verifying the syntax receiver is an
+    /// invocation, not a type name. Peels implicit conversions that Roslyn may insert
+    /// (e.g., covariance, interface adaptation).
+    /// </summary>
+    public static IInvocationOperation? GetReceiverInvocation(IInvocationOperation invocation)
+    {
+        if (invocation.Instance is IInvocationOperation instanceInvocation)
+        {
+            return instanceInvocation;
+        }
+
+        if (invocation.TargetMethod.IsExtensionMethod
+            && invocation.Arguments.Length > 0
+            && invocation.Syntax is InvocationExpressionSyntax
+               {
+                   Expression: MemberAccessExpressionSyntax
+                   {
+                       Expression: InvocationExpressionSyntax
+                   }
+               })
+        {
+            IOperation argValue = invocation.Arguments[0].Value;
+
+            while (argValue is IConversionOperation { IsImplicit: true } conversion)
+            {
+                argValue = conversion.Operand;
+            }
+
+            return argValue as IInvocationOperation;
         }
 
         return null;
